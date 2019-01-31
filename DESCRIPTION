@@ -1,0 +1,12 @@
+Package: NSCprocessR
+Title: Process Non-Structural Carbon Measurements from Colourimetric Assays
+Version: 0.0.0.9000
+Authors@R: c (person("Tim T.", "Rademacher", email = "trademacher@fas.harvard.edu", role = c("aut", "cre")),
+              person("Donald M.", "Aubrecht", email = "", role = "aut"))
+Description: The package provides functions to process raw data from colourimetric assays to analyse the sugar or starch content of a sample.  
+Depends: R (>= 3.5.1)
+Imports: 
+    readxl
+License: AGPL-3
+Encoding: UTF-8
+LazyData: true
