@@ -4,7 +4,7 @@
 #' @param data Tibble with the data and summary.
 #' @return The plot summarizing the data.
 #' @export
-processNSCs <- function (data) {
+plotDataSummary <- function (data) {
 
   return ()
 }
