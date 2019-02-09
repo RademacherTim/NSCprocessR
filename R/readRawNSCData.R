@@ -5,6 +5,7 @@
 #' @param fileName Character string with the file name of the excel spreadsheet containing the raw data.
 #' @param IDs Vector of character strings with sample ID specifications, such as c ('SampleID','BatchID','Tissue','Treatment'). It needs to contain at least one column called 'SampleID'. The identification columns are expected to preceed any other columns.
 #' @return The raw data from the nonstructural carbohydrate assay.
+#' @import readxl
 #' @export
 readRawNSCData <- function (workDir, fileName, IDs = c ('SampleID')){
  # Get the filePath to the relevant excel spreadsheet
