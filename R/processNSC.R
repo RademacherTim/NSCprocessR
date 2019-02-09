@@ -82,13 +82,15 @@ processNSCs <- function (rawData, cvLimitSample = 0.25, cvLimitTube = 0.05, forc
       #----------------------------------------------------------------------------------
       if (forceIntercept) { # Get slope for intercepts forced through zero
         if (NSC == 'sugar') {
-          fitSugar  <- lm (referenceValues [['MeanAbsorbance490']] ~ 0 + concentrations)
+          fitSugar  <- lm (referenceValues [['MeanAbsorbance490']] -
+                           referenceValues [['Absorbance490_Blank']] ~ 0 + concentrations)
         } else if (NSC == 'starch') {
           fitStarch <- lm (referenceValues [['MeanAbsorbance525']] ~ 0 + concentrations)
         }
       } else { # Get intercept and slope
         if (NSC == 'sugar') {
-          fitSugar  <- lm (referenceValues [['MeanAbsorbance490']] ~ concentrations)
+          fitSugar  <- lm (referenceValues [['MeanAbsorbance490']] -
+                           referenceValues [['Absorbance490_Blank']] ~ concentrations)
         } else if (NSC == 'starch') {
           fitStarch <- lm (referenceValues [['MeanAbsorbance525']] ~ concentrations)
         }
