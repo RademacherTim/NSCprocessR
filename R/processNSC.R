@@ -11,7 +11,7 @@ processNSCs <- function (rawData, cvLimitSample = 0.25, cvLimitTube = 0.05, forc
 
   # Calculate the sample weight [g]
   #--------------------------------------------------------------------------------------
-  rawData [['MassSample']] <- rawData [['MassOfTubeAndSample']] - rawData [['MassOfEmptyTube']]
+  rawData [['MassSample']] <- rawData [['MassOfTubeAndSample']] - rawData [['MassOfEmptyTube']] / 1e3
 
   # Get indices for samples with negative weight
   #--------------------------------------------------------------------------------------
@@ -19,7 +19,11 @@ processNSCs <- function (rawData, cvLimitSample = 0.25, cvLimitTube = 0.05, forc
 
   # Set 'MassSample' to zero for blanks (B) and tube blanks (TB) that have negative weight
   #--------------------------------------------------------------------------------------
-  rawData [['MassSample']] [rawData [['SampleID']] [indices] == 'B' | rawData [['SampleID']] [indices] == 'TB'] <- 0.0
+  for (i in indices) {
+    if (rawData [['SampleID']] [i] == 'B' |
+        rawData [['SampleID']] [i] == 'TB') rawData [['MassSample']] [i] <- 0.0
+  }
+
 
   # Error for non-blanks with negativ weight.
   #--------------------------------------------------------------------------------------
@@ -145,8 +149,8 @@ processNSCs <- function (rawData, cvLimitSample = 0.25, cvLimitTube = 0.05, forc
 
   # Convert concentrations from [mg g-1] to [% dry weight]
   #--------------------------------------------------------------------------------------
-  rawData [['ConcentrationSugar%DW']]  <- rawData [['ConcentrationSugarMgG']]  / 10.0
-  rawData [['ConcentrationStarch%DW']] <- rawData [['ConcentrationStarchMgG']] / 10.0
+  rawData [['ConcentrationSugarPerDW']]  <- rawData [['ConcentrationSugarMgG']]  / 10.0
+  rawData [['ConcentrationStarchPerDW']] <- rawData [['ConcentrationStarchMgG']] / 10.0
 
   # Declare data as processed
   #--------------------------------------------------------------------------------------

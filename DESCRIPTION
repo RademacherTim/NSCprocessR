@@ -7,6 +7,7 @@ Description: The package provides functions to process raw data from colourimetr
 Depends: R (>= 3.5.1)
 Imports: 
     readxl
+    openxlsx
 License: AGPL-3
 Encoding: UTF-8
 LazyData: true

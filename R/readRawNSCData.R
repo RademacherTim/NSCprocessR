@@ -7,11 +7,11 @@
 #' @return The raw data from the nonstructural carbohydrate assay.
 #' @import readxl
 #' @export
-readRawNSCData <- function (workDir, fileName, IDs = c ('SampleID')){
+readRawNSCData <- function (fileDir, fileName, IDs = c ('SampleID')){
 
  # Get the filePath to the relevant excel spreadsheet
  #---------------------------------------------------------------------------------------
- filePath <- paste (workDir, fileName, sep = "/")
+ filePath <- paste (fileDir, fileName, sep = "/")
 
  # Check that at least one ID column has been provide
  #---------------------------------------------------------------------------------------
@@ -42,7 +42,7 @@ readRawNSCData <- function (workDir, fileName, IDs = c ('SampleID')){
  if (length (which (names (temp) == 'SampleLocation')) > 1) {
    stop ('There are multiple columns with the sample location.')
  } else if (length (which (names (temp) == 'SampleLocation')) < 1) {
-   warning ('There is no column with the samnple location.')
+   warning ('There is no column with the sample location.')
  }
 
  # Check that dates are provided for the sample collection and analysis
