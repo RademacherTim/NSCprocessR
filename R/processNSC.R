@@ -11,7 +11,7 @@ processNSCs <- function (rawData, cvLimitSample = 0.25, cvLimitTube = 0.05, forc
 
   # Calculate the sample weight [g]
   #--------------------------------------------------------------------------------------
-  rawData [['MassSample']] <- rawData [['MassOfTubeAndSample']] - rawData [['MassOfEmptyTube']] / 1e3
+  rawData [['MassSample']] <- (rawData [['MassOfTubeAndSample']] - rawData [['MassOfEmptyTube']]) * 1e3
 
   # Get indices for samples with negative weight
   #--------------------------------------------------------------------------------------
@@ -68,7 +68,7 @@ processNSCs <- function (rawData, cvLimitSample = 0.25, cvLimitTube = 0.05, forc
   #--------------------------------------------------------------------------------------
   batches <- unique (rawData [['BatchID']])
 
-  # Make and save a calibration curve for each batch TTR I need to adjust the absorbance of the calibration curve for the no phenol blanks
+  # Make and save a calibration curve for each batch
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
     for (NSC in c ('sugar','starch')) {
