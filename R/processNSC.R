@@ -64,18 +64,6 @@ processNSCs <- function (rawData,
   rawData [['HighCV']] [rawData [["CVAbsorbance525"]] > cvLimitTube &
                         rawData [['HighCV']] == 'Sugar'] <- 'Sugar and starch'
 
-  # Extract blanks with solution
-  #--------------------------------------------------------------------------------------
-  #blanks <- rawData [rawData [['SampleID']] == 'B', ]
-
-  # Extract blanks with only empty tubes
-  #--------------------------------------------------------------------------------------
-  #tubeBlanks <- rawData [rawData [['SampleID']] == 'TB', ]
-
-  # Extract Lab Control Standards (LCS)
-  #--------------------------------------------------------------------------------------
-  #labControlStandards <- rawData [substr (rawData [['SampleID']], 1, 3) == 'LCS', ]
-
   # Compile a list of batches
   #--------------------------------------------------------------------------------------
   batches <- unique (rawData [['BatchID']])
