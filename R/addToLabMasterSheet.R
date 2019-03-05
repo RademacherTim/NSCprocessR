@@ -5,34 +5,80 @@
 #' @return
 #' @import openxlsx
 #' @import readxl
+#' @import tidyverse
 #' @export
-addToLabMasterSheet <- function (data, fileDir, fileName) {
+addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) {
+
+  # get the number of ID coumns
+  #----------------------------------------------------------------------------------
+  nIDs <- length (IDs)
 
   # Paste directory name and file name to get a full path
+  #----------------------------------------------------------------------------------
   fullPath <- paste (fileDir,'/',fileName, sep = '')
 
   # Check whether master sheet exists for lab and create it
-  if (!file.exists (fullPath)) {
-    openxlsx::write.xlsx (x = data, # TTR Need to go over these to check them! Is all still old from java dependent package.
-                          file = fullPath,
+  #----------------------------------------------------------------------------------
+  if (!file.exists (fullPath)) { # If master sheet does NOT exist, create it with the data
+    openxlsx::write.xlsx (x         = data,
+                          file      = fullPath,
                           sheetName = "Master",
                           col.names = TRUE,
-                          row.names = TRUE,
-                          append = FALSE) # If not create it with the data
+                          row.names = FALSE,
+                          append    = FALSE,
+                          keepNA    = FALSE)
   } else { # If it does exist
 
     # Read the master sheet
     #------------------------------------------------------------------------------------
-    types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 11)) # TTR Need to adjust col_types to include processed columns!!!
-    data <- readxl::read_excel (filePath, col_types = types)
+    types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 19), 'text',
+                rep ('numeric', 2), 'text', 'numeric','text', rep ('numeric', 12))
+    master <- readxl::read_excel (fullPath, col_types = types)
 
-    # Check whether data is already in the data sheet
+    # Join the two tibble
     #------------------------------------------------------------------------------------
+    temp <- dplyr::full_join (x = master,
+                              y = data,
+                              by = c ("RCLabNumber", "SampleID", "Tissue", "BatchID",
+                                      "SampleLocation", "DateOfSampleCollection",
+                                      "DateOfSugarAnalysis", "DateOfStarchAnalysis",
+                                      "MassOfEmptyTube", "MassOfTubeAndSample",
+                                      "Absorbance490_1", "Absorbance490_2",
+                                      "Absorbance490_Blank", "Absorbance525_1",
+                                      "Absorbance525_2", "DilutionFactorSugar",
+                                      "VolumeSugar", "DilutionFactorStarch",
+                                      "VolumeStarch", "MassSample", "MeanAbsorbance490",
+                                      "MeanAbsorbance525", "CorrectedMeanAbsorbance490",
+                                      "SDAbsorbance490", "SDAbsorbance525",
+                                      "CVAbsorbance490", "CVAbsorbance525", "HighCV",
+                                      "InterceptSugar", "SlopeSugar", "TBHigh",
+                                      "CorrectedMeanAbsorbance525", "LowAbsorbance525",
+                                      "InterceptStarch", "SlopeStarch",
+                                      "ConcentrationSugar", "MassSugar",
+                                      "ConcentrationStarch", "MassStarch",
+                                      "MeanStarchRecovery", "CorrectedMassStarch",
+                                      "ConcentrationSugarMgG", "ConcentrationStarchMgG",
+                                      "ConcentrationSugarPerDW",
+                                      "ConcentrationStarchPerDW"))
 
+    # Delete duplicate rows in temp, in case the data had already been added
+    #----------------------------------------------------------------------------------
+    temp %>% distinct (temp, .keep_all = TRUE) # Currently returns a warning!
+
+    # Overwrite the old master sheet with the new version
+    #----------------------------------------------------------------------------------
+    openxlsx::write.xlsx (x         = temp,
+                          file      = fullPath,
+                          sheetName = "Master",
+                          col.names = TRUE,
+                          row.names = FALSE,
+                          append    = FALSE, # Do not append the already existing sheet
+                          keepNA    = FALSE) # Empty cells for NAs
   }
 
-
-
-  #
-  return ()
+  # Return zero if the function ran smoothly and data has been successfully appended to the master sheet
+  #----------------------------------------------------------------------------------
+  return (0)
 }
+# TTR TO do:
+# - check whether duplication of rows is an issue

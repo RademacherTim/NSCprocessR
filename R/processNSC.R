@@ -9,7 +9,7 @@
 #' @export
 processNSCs <- function (rawData,
                          cvLimitSample = 0.25,
-                         cvLimitTube = 0.10,
+                         cvLimitTube = 0.05, # Should this be 0.10 or 10% error, as suggested by Jim?
                          forceIntercept = FALSE,
                          maxStarchRecoveryFraction = 0.9) {
 
@@ -44,7 +44,7 @@ processNSCs <- function (rawData,
   rawData [['MeanAbsorbance490']] <- rowMeans (absorbances490)
   rawData [['MeanAbsorbance525']] <- rowMeans (absorbances525)
   rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
-                                              rawData [['Absorbance490_Blank']]
+                                              rawData [['Absorbance490_Blank']] # TTR Some corrected mean absorbances are negative.
 
   # Calculate the within-sample coefficient of variation
   #--------------------------------------------------------------------------------------
@@ -52,8 +52,14 @@ processNSCs <- function (rawData,
   rawData [['SDAbsorbance525']] <- apply (absorbances525, 1, sd)
   rawData [['CVAbsorbance490']] <- rawData [['SDAbsorbance490']] /
                                    rawData [['MeanAbsorbance490']]
+  rawData [['CVAbsorbance490']] [rawData [['CVAbsorbance490']] < 0.0   |
+                                 is.na  (rawData [['CVAborbance490']]) |
+                                 is.nan (rawData [['CVABsorbance490']])] <- NA
   rawData [['CVAbsorbance525']] <- rawData [['SDAbsorbance525']] /
                                    rawData [['MeanAbsorbance525']]
+  rawData [['CVAbsorbance525']] [rawData [['CVAbsorbance525']] < 0.0   |
+                                   is.na  (rawData [['CVAborbance525']]) |
+                                   is.nan (rawData [['CVABsorbance525']])] <- NA
 
   # Flag samples with high CV for re-measuring
   #--------------------------------------------------------------------------------------
@@ -64,11 +70,11 @@ processNSCs <- function (rawData,
   rawData [['HighCV']] [rawData [["CVAbsorbance525"]] > cvLimitTube &
                         rawData [['HighCV']] == 'Sugar'] <- 'Sugar and starch'
 
-  # Compile a list of batches
+  # Compile a list of unique batches
   #--------------------------------------------------------------------------------------
-  batches <- unique (rawData [['BatchID']])
+  batches <- unique (rawData [['BatchID']])# & rawData [['DateOfSugarAnalysis']])
 
-  # Make and save a calibration curve for each batch
+  # Make and save a calibration curve for each batch # TTR Should be dependent on BatchID and Date, because BatchID might be repeated.
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
     for (NSC in c ('sugar','starch')) {
@@ -95,16 +101,37 @@ processNSCs <- function (rawData,
 
         # Get the batch's mean absorbance at 525nm for tube blanks
         #--------------------------------------------------------------------------------
-        batchTBAbsorbance <- rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB']
+        batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB'])
 
-        # Check that TB absorbance is not larger than the sample, otherwise set flag
+        # Determine correction factor from TB, unless they are larger than the sample
+        # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm
+        #
         #--------------------------------------------------------------------------------
-        #if (batchTBAbsorbance > ) {}
+        correction <- min (batchTBAbsorbance, rawData [['MeanAbsorbance525']] [rawData [['BatchID']] == batch])
 
-        # Correct reference value for tube blank absorbance
+        # Integrate flag here for when TB are higher than MeanAbsorbance525
         #--------------------------------------------------------------------------------
-        rawData [['CorrectedMeanAbsorbance525']] [rawData [['BatchID']] == batch] <- rawData [['MeanAbsorbance525']] -
-                                                                                     batchTBAbsorbance
+        if (batchTBAbsorbance != batchTBAbsorbance) {
+          rawData [['TBHigh']] [rawData [['BatchID']] == batch] <- 'Y'
+        } else {
+          rawData [['TBHigh']] [rawData [['BatchID']] == batch] <- 'N'
+        }
+
+        # Correct mean absorbance values at 525nm
+        #--------------------------------------------------------------------------------
+        rawData [['CorrectedMeanAbsorbance525']] [rawData [['BatchID']] == batch] <-
+        rawData [['MeanAbsorbance525']] [rawData [['BatchID']] == batch] - correction
+
+        # Set flag for low samples values
+        #--------------------------------------------------------------------------------
+        rawData [['LowAbsorbance525']] [rawData [['BatchID']] == batch] <- 'N'
+        rawData [['LowAbsorbance525']] [rawData [['MeanAbsorbacne525']] < batchTBAbsorbance &
+                                        rawData [['BatchID']] == batch] <- 'Y'
+
+        # Correct reference values for tube blank absorbance at 525nm
+        #--------------------------------------------------------------------------------
+        referenceValues [['CorrectedMeanAbsorbance525']] <-
+        referenceValues [['MeanAbsorbance525']] - batchTBAbsorbance
       }
       concentrations <- as.numeric (concentrations)
 
@@ -151,6 +178,9 @@ processNSCs <- function (rawData,
   rawData [['ConcentrationSugar']] <- rawData [['CorrectedMeanAbsorbance490']] *
                                       rawData [['SlopeSugar']] +
                                       rawData [['InterceptSugar']]
+  rawData [['ConcentrationSugar']] [rawData [['ConcentrationSugar']] < 0.0   |
+                                    is.na  (rawData [['ConcentrationSugar']])|
+                                    is.nan (rawData [['ConcentrationSugar']])] <- NA
 
   # Correct sugar amount [mg ml-1] for background signal using no phenol
   #--------------------------------------------------------------------------------------
@@ -163,6 +193,9 @@ processNSCs <- function (rawData,
   rawData [['ConcentrationStarch']] <- rawData [['CorrectedMeanAbsorbance525']] *
                                        rawData [['SlopeStarch']] +
                                        rawData [['InterceptStarch']]
+  rawData [['ConcentrationStarch']] [rawData [['ConcentrationStarch']] < 0.0   |
+                                      is.na  (rawData [['ConcentrationStarch']])|
+                                      is.nan (rawData [['ConcentrationStarch']])] <- NA
   rawData [['MassStarch']] <- rawData [['ConcentrationStarch']] *
                               rawData [['DilutionFactorStarch']] *
                               rawData [['VolumeStarch']]
@@ -170,9 +203,9 @@ processNSCs <- function (rawData,
   # Calcualte starch recovery
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
-    # Get absorbances for potato starch for each batch
+    # Get absorbances for potato starch for each batch # TTR How can there be more starch then the sample weighed?
     #----------------------------------------------------------------------------------
-    condition <- substr (rawData [['SampleID']], 1, 3) == 'LCS potato' &
+    condition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
                          rawData [['BatchID']] == batch
     LCSPotato <- rawData [condition, ]
     meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
@@ -194,6 +227,9 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   rawData [['ConcentrationSugarMgG']]  <- rawData [['MassSugar']] /
                                           rawData [['MassSample']]
+  rawData [['ConcentrationSugarMgG']] [rawData [['ConcentrationSugarMgG']] < 0.0   |
+                                       is.na (rawData [['ConcentrationSugarMgG']]) |
+                                       is.nan (rawData [['ConcentrationSugarMgG']])] <- NA
   rawData [['ConcentrationStarchMgG']] <- rawData [['CorrectedMassStarch']] /
                                           rawData [['MassSample']]
 
@@ -212,4 +248,5 @@ processNSCs <- function (rawData,
   return (processedData)
 }
 # To-do-list:
-# TTR Correct starch concentration using the TB and percentage of extracted potato starch
+# TTR Test that new correction for potato starch recovery work
+# TTR Test that TBHigh flag works
