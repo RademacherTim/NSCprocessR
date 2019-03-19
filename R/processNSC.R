@@ -247,5 +247,5 @@ processNSCs <- function (rawData,
   return (processedData)
 }
 # To-do-list:
-# TTR Test that new correction for potato starch recovery work
 # TTR Test that TBHigh flag works
+# - meanStarchRecovery can be more than 100 percent, which does not make sense, So should I limited it to 100 max?

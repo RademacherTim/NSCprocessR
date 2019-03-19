@@ -137,7 +137,5 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
   return (0)
 }
 # To do list: Make a separate calibration curve for each extraction date. At the moment, it only depends on batch number, which will eventually be repeated.
-# TTR test function, produce pdf and discuss calibrations curves with Jim
+# TTR discuss calibrations curves with Jim
 # TTR add error bars as standard deviation
-# TTR create plot of REF100 values over time with mean and standard deviation
-# TTR create plot of LCS over time (Oak wood and potato)

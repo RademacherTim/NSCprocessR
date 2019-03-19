@@ -1,10 +1,10 @@
-#' Plot calibration curves
+#' Plot laboratory control standards over time
 #'
-#' Function to plot the calibration curves returned by the NSCprocessR::processNSC () function.
+#' Function to plot the laboratory control standards over time.
 #' @param data Tibble with the processed data using the NSCprocessR::processNSC function. It can also be from the already processed data in the master file read in using NSCprocessR::readLabMasterSheet () function.
 #' @return pdf file with a graph of each lab control standard over time.
 #' @export
-plotStandards <- function (data) {
+plotLabControlStandards <- function (data) {
 
   # Compile a list of unique LCS, whose SampleID must start with LCS
   #--------------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ plotStandards <- function (data) {
       #----------------------------------------------------------------------------------
       png (file = fileName)
 
-      # Check whether it is a strach or sugar standard
+      # Check whether it is a starch or sugar standard
       #----------------------------------------------------------------------------------
       if (standard == 'LCS Oak') {
         dates <- data [['DateOfSugarAnalysis']] [data [['SampleID']] == standard]
@@ -44,9 +44,13 @@ plotStandards <- function (data) {
             pch = 19,
             ylim  = c (0, 1.5*max (concentrationsOfStds)))
       # Add the mean and standard deviation
+      #----------------------------------------------------------------------------------
       means <- aggregate (concentrationsOfStds, by = list (dates), FUN = mean)
       sds <- aggregate (concentrationsOfStds, by = list (dates), FUN = sd)
-      arrows (x0 = means [, 1], y0 = means [, 2] - sds [, 2], x1 = means [, 1], y1 = means [, 2] + sds [, 2],
+      arrows (x0 = means [, 1],
+              y0 = means [, 2] - sds [, 2],
+              x1 = means [, 1],
+              y1 = means [, 2] + sds [, 2],
               col = '#DC143C99',
               length = 0.05,
               angle = 90,

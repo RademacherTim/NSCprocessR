@@ -63,7 +63,7 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
 
     # Delete duplicate rows in temp, in case the data had already been added
     #----------------------------------------------------------------------------------
-    temp %>% distinct (temp, .keep_all = TRUE) # Currently returns a warning!
+    temp %>% distinct (temp, .keep_all = TRUE) # TTR currently returns a warning, but seems to work fine. And future releases of distinct should nfix this bug.
 
     # Overwrite the old master sheet with the new version
     #----------------------------------------------------------------------------------
@@ -80,5 +80,4 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
   #----------------------------------------------------------------------------------
   return (0)
 }
-# TTR TO do:
-# - check whether duplication of rows is an issue
+# To-do list:
