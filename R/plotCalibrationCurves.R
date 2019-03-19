@@ -4,7 +4,7 @@
 #' @param data Tibble with the processed data using the NSCprocessR::processNSC function.
 #' @return pdf file with a graph of each batch's calibration curve.
 #' @export
-plotCalibrationCurves <- function (data) {
+plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
   # Compile a list of unique batches # TTR Might ahve to include analysis dates in the future
   #--------------------------------------------------------------------------------------

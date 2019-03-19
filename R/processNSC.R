@@ -209,9 +209,8 @@ processNSCs <- function (rawData,
                          rawData [['BatchID']] == batch
     LCSPotato <- rawData [condition, ]
     meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
-    meanPotatoMass <- mean (LCSPotato [['MassSample']])
-    meanRecoveryPer <- meanPotatoMassRecovered /
-                      (meanPotatoMass * maxStarchRecoveryFraction) * 100.0
+    meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0 # Convert from g to mg
+    meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
 
     # Set batch's mean starch recovery rate
     #----------------------------------------------------------------------------------
