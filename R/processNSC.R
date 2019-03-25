@@ -41,8 +41,8 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   absorbances490 <- cbind (rawData [['Absorbance490_1']], rawData [['Absorbance490_2']])
   absorbances525 <- cbind (rawData [['Absorbance525_1']], rawData [['Absorbance525_2']])
-  rawData [['MeanAbsorbance490']] <- rowMeans (absorbances490)
-  rawData [['MeanAbsorbance525']] <- rowMeans (absorbances525)
+  rawData [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = T)
+  rawData [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = T)
   rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
                                               rawData [['Absorbance490_Blank']] # TTR Some corrected mean absorbances are negative.
 
@@ -101,6 +101,7 @@ processNSCs <- function (rawData,
 
         # Get the batch's mean absorbance at 525nm for tube blanks
         #--------------------------------------------------------------------------------
+        #is.na (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB'])
         batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB'])
 
         # Determine correction factor from TB, unless they are larger than the sample
@@ -203,18 +204,33 @@ processNSCs <- function (rawData,
   # Calcualte starch recovery
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
-    # Get absorbances for potato starch for each batch # TTR How can there be more starch then the sample weighed?
+    # Get absorbances for potato starch for each batch
     #----------------------------------------------------------------------------------
     condition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
                          rawData [['BatchID']] == batch
-    LCSPotato <- rawData [condition, ]
-    meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
-    meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0 # Convert from g to mg
-    meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
 
-    # Set batch's mean starch recovery rate
+    # Check whether potato standard was run, otherwise use 100% as correction factor
     #----------------------------------------------------------------------------------
-    rawData [['MeanStarchRecovery']] [rawData [['BatchID']] == batch] <- meanRecoveryPer
+    if (sum (condition) == 0) {
+      rawData [['MeanStarchRecovery']] [rawData [['BatchID']] == batch] <- 100.0
+    } else {
+
+      LCSPotato <- rawData [condition, ]
+      meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
+      if (meanPotatoMassRecovered >
+          mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0) { # Maybe I should just drop to one high value?
+        meanPotatoMass <- mean (LCSPotato [['MassSample']])
+      } else {
+        meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction
+      }
+      meanPotatoMass <- meanPotatoMass * 1000.0 # Convert from g to mg
+      meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
+      meanRecoveryPer <- min (meanRecoveryPer, 100.0) # Hack to avoid recovery rate above 100%.
+
+      # Set batch's mean starch recovery rate
+      #----------------------------------------------------------------------------------
+      rawData [['MeanStarchRecovery']] [rawData [['BatchID']] == batch] <- meanRecoveryPer
+    }
   }
 
   # Correct all samples for the mean starch recovery percentage of each batch
@@ -248,4 +264,4 @@ processNSCs <- function (rawData,
 }
 # To-do-list:
 # TTR Test that TBHigh flag works
-# - meanStarchRecovery can be more than 100 percent, which does not make sense, So should I limited it to 100 max?
+# - meanStarchRecovery can be more than 100 percent, which does not make sense. As a hack I limited it to 100% as max!!!

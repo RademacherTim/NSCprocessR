@@ -21,7 +21,7 @@ readRawNSCData <- function (fileDir, fileName, IDs = c ('SampleID')){
  # Read the relevant columns in the excel spreadsheet and organise the tibble
  #---------------------------------------------------------------------------------------
  if (file.exists (filePath)){
-   types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 11))
+   types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 11), 'text')
    temp <- readxl::read_excel (filePath, col_types = types) [, 1:(15 + nIDs)] # Only read the relevant columns
  } else {
    stop ("Error: The file your are trying to read does not exist.")

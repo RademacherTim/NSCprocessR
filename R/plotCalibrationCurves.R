@@ -6,29 +6,43 @@
 #' @export
 plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
-  # Compile a list of unique batches # TTR Might ahve to include analysis dates in the future
+  # Compile a list of unique batches and dates for sugar extractions
   #--------------------------------------------------------------------------------------
   batches <- unique (data [['BatchID']])
+  for (batch in batches) {
+    dates <- unique (data [['DateOfSugarAnalysis']] [data [['BatchID']] == batch])
+    if (batch == batches [1]) {
+      extractionsSugar <- tibble (batch = batch, date = dates)
+    } else {
+      extractionsSugar <- add_row (extractionsSugar, batch = batch, date = dates)
+    }
+  }
 
-  # Make and save a calibration curve for each batch # TTR Should be dependent on BatchID and Date, because BatchID might be repeated.
+  # Compile a list of unique batches and dates for sugar extractions
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
+    dates <- unique (data [['DateOfStarchAnalysis']] [data [['BatchID']] == batch])
+    if (batch == batches [1]) {
+      extractionsStarch <- tibble (batch = batch, date = dates)
+    } else {
+      extractionsStarch <- add_row (extractionsStarch, batch = batch, date = dates)
+    }
+  }
 
-    for (NSC in c ('sugar','starch')) {
+  # Make and save a sugar calibration curve for each combination of batch and date
+  #--------------------------------------------------------------------------------------
+  for (extraction in 1:(dim (extractionsSugar) [1])) {
 
-      # Get date of analysis
+      # Get date of analysis and batch number
       #--------------------------------------------------------------------------------------
-      if (NSC == 'sugar') {
-        analysisDate <- unique (data [['DateOfSugarAnalysis']] [data [['BatchID']] == batch])
-      } else if (NSC == 'starch') {
-        analysisDate <- unique (data [['DateOfStarchAnalysis']] [data [['BatchID']] == batch])
-      }
-      if (length (analysisDate) > 1) stop ('Error: The batch has multiple associated analysis dates!')
+      analysisDate <- extractionsSugar [['date']] [extraction]
+      batch <- extractionsSugar [['batch']] [extraction]
 
       # Get absorbances for reference values to create a calibration curve for each batch
       #----------------------------------------------------------------------------------
-      condition <- substr (data [['SampleID']], 1, 3) == 'REF' &
-                           data [['BatchID']] == batch
+      condition <- substr (data [['SampleID']], 1, 3)     == 'REF' &
+                           data [['BatchID']]             == batch &
+                           data [['DateOfSugarAnalysis']] == analysisDate
       referenceValues <- data [condition, ]
 
       # Get reference solution concentrations
@@ -37,36 +51,24 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
                                 4,
                                 nchar (data [['SampleID']] [condition]))
 
-      # Set reference solution concentrations depending on whether we are calibrating
-      # starch or sugar
+      # Set reference solution concentrations to 100 for sugars
       #----------------------------------------------------------------------------------
-      if (NSC == 'sugar') {
-        concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
-      } else if (NSC == 'starch'){
-        concentrations [concentrations == '100/200'] <- 200.0 # 200 for starrch
-      }
+      concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
       concentrations <- as.numeric (concentrations)
 
       # Get the slope and intercept
       #----------------------------------------------------------------------------------
       if (forceIntercept) { # Get slope for intercepts forced through zero
-        if (NSC == 'sugar') { # sugar <- slope * absorbance + intercept
-          fitSugar  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance490']])
-        } else if (NSC == 'starch') {
-          fitStarch <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance525']])
-        }
+      # sugar <- slope * absorbance + intercept
+        fitSugar  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance490']])
       } else { # Get intercept and slope
-        if (NSC == 'sugar') {
-          fitSugar  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance490']])
-        } else if (NSC == 'starch') {
-          fitStarch <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
-        }
+        fitSugar  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance490']])
       }
 
       # Create fileName for the pdf
       #----------------------------------------------------------------------------------
       fileName <- paste ("calibrationCurveBatch",batch,"_",format (analysisDate, "%Y-%m-%d"),
-                         "_",NSC,".pdf", sep = "")
+                         "_sugar.pdf", sep = "")
 
       # Open the pdf
       #----------------------------------------------------------------------------------
@@ -74,68 +76,114 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
       # Plot the sugar calibration curve
       #----------------------------------------------------------------------------------
-      if (NSC == 'sugar') {
-        plot (x = referenceValues [['CorrectedMeanAbsorbance490']],
+      plot (x = referenceValues [['CorrectedMeanAbsorbance490']],
+            y = concentrations,
+            main = paste ('calibration curve for ',NSC,' (batch ',batch,'; ',analysisDate,')', sep = ''),
+            las = 1,
+            xlab = 'absorbance at 490 nm',
+            ylab = 'sugar (mg / ml)') # TTR Should this be per ml
+      points (x = referenceValues [['CorrectedMeanAbsorbance490']],
               y = concentrations,
-              main = paste ('calibration curve for ',NSC,' (batch ',batch,'; ',analysisDate,')', sep = ''),
-              las = 1,
-              xlab = 'absorbance at 490 nm',
-              ylab = 'sugar (mg / ml)') # TTR Should this be per ml
-        points (x = referenceValues [['CorrectedMeanAbsorbance490']],
-                y = concentrations,
-                col = '#91b9a499',
-                pch = 19)
-        # Error bars are not really meaningful, because they are based on colour determinations for most of the values but on repetitions for REF100
-        #if (length (unique (concentrations)) > length (concentrations)) {
-        #  aggregate (referenceValues [['CorrectedMeanAbsorbance490']], list (concentrations), sd)
-        #  arrows ()
-        #}
-        abline (fitSugar,
-                col = 'grey',
-                lwd = 2, lty = 2)
-        text (x = mean (referenceValues [['CorrectedMeanAbsorbance490']]),
-              y = 20,
-              labels = expression (paste (R^2,' = ', sep = '')),
-              pos = 4)
-        text (x = mean (referenceValues [['CorrectedMeanAbsorbance490']]) * 1.2,
-              y = 20,
-              labels = round (summary (fitSugar)$r.squared, 3),
-              pos = 4)
-      } else if (NSC == 'starch') { # Plot starch calibration curve
-        plot (x = referenceValues [['CorrectedMeanAbsorbance525']],
-              y = concentrations,
-              main = paste ('calibration curve for ',NSC,' (batch ',batch,'; ',analysisDate,')', sep = ''),
-              las = 1,
-              xlab = 'absorbance at 525 nm',
-              ylab = 'glucose equivalent (mg / ml)')
-        points (x = referenceValues [['CorrectedMeanAbsorbance525']],
-                y = concentrations,
-                col = '#91b9a499',
-                pch = 19)
-        abline (fitStarch,
-                col = 'grey',
-                lwd = 2, lty = 2)
-        text (x = mean (referenceValues [['CorrectedMeanAbsorbance525']]),
-              y = 20,
-              labels = expression (paste (R^2,' = ', sep = '')),
-              pos = 4)
-        text (x = mean (referenceValues [['CorrectedMeanAbsorbance525']]) * 1.1,
-              y = 20,
-              labels = round (summary (fitStarch)$r.squared, 3),
-              pos = 4)
-      }
+              col = '#91b9a499',
+              pch = 19)
+      # Error bars are not really meaningful, because they are based on colour determinations for most of the values but on repetitions for REF100
+      #if (length (unique (concentrations)) > length (concentrations)) {
+      #  aggregate (referenceValues [['CorrectedMeanAbsorbance490']], list (concentrations), sd)
+      #  arrows ()
+      #}
+      abline (fitSugar,
+              col = 'grey',
+              lwd = 2, lty = 2)
+      text (x = mean (referenceValues [['CorrectedMeanAbsorbance490']]),
+            y = 20,
+            labels = expression (paste (R^2,' = ', sep = '')),
+            pos = 4)
+      text (x = mean (referenceValues [['CorrectedMeanAbsorbance490']]) * 1.2,
+            y = 20,
+            labels = round (summary (fitSugar)$r.squared, 3),
+            pos = 4)
 
       # close graphics device
       #----------------------------------------------------------------------------------
       dev.off ()
+  }
 
-    } # End NSC (sugar versus starch) loop
+  # Make and save a starch calibration curve for each combination of batch and date
+  #--------------------------------------------------------------------------------------
+  for (extraction in 1:(dim (extractionsStarch) [1])) {
 
-  } # End of batch loop
+    # Get date of analysis and batch number
+    #--------------------------------------------------------------------------------------
+    analysisDate <- extractionsStarch [['date']] [extraction]
+    batch <- extractionsStarch [['batch']] [extraction]
+
+    # Get absorbances for reference values to create a calibration curve for each batch
+    #----------------------------------------------------------------------------------
+    condition <- substr (data [['SampleID']], 1, 3)      == 'REF' &
+                         data [['BatchID']]              == batch &
+                         data [['DateOfStarchAnalysis']] == analysisDate
+    referenceValues <- data [condition, ]
+
+    # Get reference solution concentrations
+    #----------------------------------------------------------------------------------
+    concentrations <- substr (data [['SampleID']] [condition],
+                              4,
+                              nchar (data [['SampleID']] [condition]))
+
+    # Set reference solution concentrations to 200 for starch
+    #----------------------------------------------------------------------------------
+    concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
+    concentrations <- as.numeric (concentrations)
+
+    # Get the slope and intercept (startch = slope * absorbance + intercept)
+    #----------------------------------------------------------------------------------
+    if (forceIntercept) { # Get slope for intercepts forced through zero
+      fitStarch  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance525']])
+    } else { # Get intercept and slope
+      fitStarch  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
+    }
+
+    # Create fileName for the pdf
+    #----------------------------------------------------------------------------------
+    fileName <- paste ("calibrationCurveBatch",batch,"_",format (analysisDate, "%Y-%m-%d"),
+                       "_starch.pdf", sep = "")
+
+    # Open the pdf
+    #----------------------------------------------------------------------------------
+    pdf (file = fileName)
+
+    # Plot the starch calibration curve
+    #----------------------------------------------------------------------------------
+    plot (x = referenceValues [['CorrectedMeanAbsorbance525']],
+          y = concentrations,
+          main = paste ('calibration curve for ',NSC,' (batch ',batch,'; ',analysisDate,')', sep = ''),
+          las = 1,
+          xlab = 'absorbance at 525 nm',
+          ylab = 'glucose equivalent (mg / ml)')
+    points (x = referenceValues [['CorrectedMeanAbsorbance525']],
+            y = concentrations,
+            col = '#91b9a499',
+            pch = 19)
+    abline (fitStarch,
+            col = 'grey',
+            lwd = 2, lty = 2)
+    text (x = mean (referenceValues [['CorrectedMeanAbsorbance525']]),
+          y = 20,
+          labels = expression (paste (R^2,' = ', sep = '')),
+          pos = 4)
+    text (x = mean (referenceValues [['CorrectedMeanAbsorbance525']]) * 1.1,
+          y = 20,
+          labels = round (summary (fitStarch)$r.squared, 3),
+          pos = 4)
+
+    # close graphics device
+    #----------------------------------------------------------------------------------
+    dev.off ()
+  }
 
   # Return zero exit status, if it ran smoothly
   return (0)
 }
-# To do list: Make a separate calibration curve for each extraction date. At the moment, it only depends on batch number, which will eventually be repeated.
+# To do list:
 # TTR discuss calibrations curves with Jim
 # TTR add error bars as standard deviation
