@@ -185,9 +185,14 @@ processNSCs <- function (rawData,
 
     # Get the batch's mean absorbance at 525nm for tube blanks
     #--------------------------------------------------------------------------------
-    batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB' &
-                                                                batchCondition],
-                               na.rm = T)
+    if (sum (rawData [['SampleID']] == 'TB' & batchCondition) > 0.0) {
+      batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB' &
+                                                                  batchCondition],
+                                 na.rm = T)
+    } else { # In case there are no tube blanks we just assume no interference form tubes
+      batchTBAbsorbance <- 0.0
+    }
+
 
     # Determine correction factor from TB, unless they are larger than the sample
     # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm
@@ -237,7 +242,7 @@ processNSCs <- function (rawData,
       rawData [['SlopeStarch']]     [batchCondition] <- fitStarch$coefficients [2]
     }
 
-  } # End of extraction loop
+  } # End of starch extractions loop
 
   # Determine concentrations from absorbance values for sugar # Call it a concentrations [mg ml-1]
   #--------------------------------------------------------------------------------------
@@ -324,13 +329,13 @@ processNSCs <- function (rawData,
 
       # Get absorbances for potato starch for each combination of batch and analysisDate
       #----------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 7)     == 'LCS Oak' &
+      refCondition <- substr (rawData [['SampleID']], 1, 7)      == 'LCS Oak'    &
                               rawData [['BatchID']]              == batch        &
                               rawData [['DateOfStarchAnalysis']] == analysisDate
 
       # get LCS Oak standard and compare it against threshold
       #----------------------------------------------------------------------------------
-      LCSOak <- rawData [['MassSugar']] [refCondition, ]
+      LCSOak <- rawData [['MassSugar']] [refCondition]
       # TTR What is a good threshold?
       # TTR Should we use the mass or concentration?
       # TTR For sugar or starch or both?
