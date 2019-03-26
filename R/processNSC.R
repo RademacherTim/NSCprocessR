@@ -76,7 +76,7 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   batches <- unique (rawData [['BatchID']])
   for (batch in batches) {
-    dates <- unique (data [['DateOfSugarAnalysis']] [data [['BatchID']] == batch])
+    dates <- unique (rawData [['DateOfSugarAnalysis']] [rawData [['BatchID']] == batch])
     if (batch == batches [1]) {
       extractionsSugar <- tibble (batch = batch, date = dates)
     } else {
@@ -92,7 +92,7 @@ processNSCs <- function (rawData,
   # Compile a list of unique batches and dates for sugar extractions
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
-    dates <- unique (data [['DateOfStarchAnalysis']] [data [['BatchID']] == batch])
+    dates <- unique (rawData [['DateOfStarchAnalysis']] [rawData [['BatchID']] == batch])
     if (batch == batches [1]) {
       extractionsStarch <- tibble (batch = batch, date = dates)
     } else {
@@ -170,7 +170,7 @@ processNSCs <- function (rawData,
                             rawData [['DateOfStarchAnalysis']] == analysisDate
     batchCondition <- rawData [['BatchID']]              == batch &
                       rawData [['DateOfStarchAnalysis']] == analysisDate
-    referenceValues <- data [refCondition, ]
+    referenceValues <- rawData [refCondition, ]
 
     # Get reference solution concentrations
     #----------------------------------------------------------------------------------
