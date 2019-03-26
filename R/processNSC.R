@@ -118,7 +118,7 @@ processNSCs <- function (rawData,
     #----------------------------------------------------------------------------------
     refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
                             rawData [['BatchID']]             == batch &
-                            rawdata [['DateOfSugarAnalysis']] == analysisDate
+                            rawData [['DateOfSugarAnalysis']] == analysisDate
     batchCondition <- rawData [['BatchID']]             == batch &
                       rawData [['DateOfSugarAnalysis']] == analysisDate
     referenceValues <- rawData [refCondition, ]
