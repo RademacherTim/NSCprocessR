@@ -3,6 +3,7 @@
 #' Function to plot the calibration curves returned by the NSCprocessR::processNSC () function.
 #' @param data Tibble with the processed data using the NSCprocessR::processNSC function.
 #' @return pdf file with a graph of each batch's calibration curve.
+#' @import tidyverse
 #' @export
 plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
@@ -17,6 +18,11 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
       extractionsSugar <- add_row (extractionsSugar, batch = batch, date = dates)
     }
   }
+  # Delete rows that do not have calibration curves
+  #--------------------------------------------------------------------------------------
+  if (sum (is.na (extractionsSugar [['date']])) > 0) {
+    extractionsSugar <- extractionsSugar [-which (is.na (extractionsSugar [['date']])), ]
+  }
 
   # Compile a list of unique batches and dates for sugar extractions
   #--------------------------------------------------------------------------------------
@@ -27,6 +33,11 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     } else {
       extractionsStarch <- add_row (extractionsStarch, batch = batch, date = dates)
     }
+  }
+  # Delete rows that do not have calibration curves
+  #--------------------------------------------------------------------------------------
+  if (sum (is.na (extractionsStarch [['date']])) > 0) {
+    extractionsStarch <- extractionsStarch [-which (is.na (extractionsStarch [['date']])), ]
   }
 
   # Make and save a sugar calibration curve for each combination of batch and date
@@ -67,8 +78,8 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
       # Create fileName for the pdf
       #----------------------------------------------------------------------------------
-      fileName <- paste ("calibrationCurveBatch",batch,"_",format (analysisDate, "%Y-%m-%d"),
-                         "_sugar.pdf", sep = "")
+      fileName <- paste ("calibrationCurve_",format (analysisDate, "%Y-%m-%d"),
+                         "_batch",batch,"_sugar.pdf", sep = "")
 
       # Open the pdf
       #----------------------------------------------------------------------------------
@@ -78,7 +89,7 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
       #----------------------------------------------------------------------------------
       plot (x = referenceValues [['CorrectedMeanAbsorbance490']],
             y = concentrations,
-            main = paste ('calibration curve for ',NSC,' (batch ',batch,'; ',analysisDate,')', sep = ''),
+            main = paste ('calibration curve for sugar (batch ',batch,'; ',analysisDate,')', sep = ''),
             las = 1,
             xlab = 'absorbance at 490 nm',
             ylab = 'sugar (mg / ml)') # TTR Should this be per ml
@@ -145,8 +156,8 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
     # Create fileName for the pdf
     #----------------------------------------------------------------------------------
-    fileName <- paste ("calibrationCurveBatch",batch,"_",format (analysisDate, "%Y-%m-%d"),
-                       "_starch.pdf", sep = "")
+    fileName <- paste ("calibrationCurve_",format (analysisDate, "%Y-%m-%d"),
+                       "_batch",batch,"_starch.pdf", sep = "")
 
     # Open the pdf
     #----------------------------------------------------------------------------------
@@ -156,7 +167,7 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     #----------------------------------------------------------------------------------
     plot (x = referenceValues [['CorrectedMeanAbsorbance525']],
           y = concentrations,
-          main = paste ('calibration curve for ',NSC,' (batch ',batch,'; ',analysisDate,')', sep = ''),
+          main = paste ('calibration curve for starch (batch ',batch,'; ',analysisDate,')', sep = ''),
           las = 1,
           xlab = 'absorbance at 525 nm',
           ylab = 'glucose equivalent (mg / ml)')
