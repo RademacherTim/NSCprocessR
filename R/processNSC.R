@@ -236,12 +236,12 @@ processNSCs <- function (rawData,
     #----------------------------------------------------------------------------------
     if (summary (fitStarch)$r.squared < 0.9) {
       indexToDrop <- which (concentrations == 250.0)
-      concentrations <- concentration [-index]
-      referenceValues [['CorrectedMeanAbsorbance525']] <- referenceValues [['CorrectedMeanAbsorbance525']] [-index]
+      concentrations <- concentrations [-indexToDrop]
+      referenceValues <- referenceValues [['CorrectedMeanAbsorbance525']] [-indexToDrop]
       if (forceIntercept) { # Get slope for intercepts forced through zero
-        fitStarch  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance525']])
+        fitStarch  <- lm (concentrations ~ 0 + referenceValues)
       } else { # Get intercept and slope
-        fitStarch  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
+        fitStarch  <- lm (concentrations ~ referenceValues)
       }
     }
 

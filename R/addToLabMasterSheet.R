@@ -32,7 +32,8 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
     # Read the master sheet
     #------------------------------------------------------------------------------------
     types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 19), 'text',
-                rep ('numeric', 2), 'text', 'numeric','text', rep ('numeric', 12))
+                rep ('numeric', 2), 'text', 'numeric','text', rep ('numeric', 6), 'text',
+                rep ('numeric', 6), 'text')
     master <- readxl::read_excel (fullPath, col_types = types)
 
     # Join the two tibble
@@ -55,11 +56,11 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
                                       "CorrectedMeanAbsorbance525", "LowAbsorbance525",
                                       "InterceptStarch", "SlopeStarch",
                                       "ConcentrationSugar", "MassSugar",
-                                      "ConcentrationStarch", "MassStarch",
+                                      "ConcentrationStarch", "MassStarch","SRFHigh",
                                       "MeanStarchRecovery", "CorrectedMassStarch",
                                       "ConcentrationSugarMgG", "ConcentrationStarchMgG",
                                       "ConcentrationSugarPerDW",
-                                      "ConcentrationStarchPerDW"))
+                                      "ConcentrationStarchPerDW","LCSOakDeviation"))
 
     # Delete duplicate rows in temp, in case the data had already been added
     #----------------------------------------------------------------------------------

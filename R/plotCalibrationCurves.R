@@ -133,7 +133,7 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     condition <- substr (data [['SampleID']], 1, 3)      == 'REF' &
                          data [['BatchID']]              == batch &
                          data [['DateOfStarchAnalysis']] == analysisDate
-    referenceValues <- data [condition, ]
+    referenceValues <- data [condition, ] [['CorrectedMeanAbsorbance525']]
 
     # Get reference solution concentrations
     #----------------------------------------------------------------------------------
@@ -149,11 +149,30 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     # Get the slope and intercept (startch = slope * absorbance + intercept)
     #----------------------------------------------------------------------------------
     if (forceIntercept) { # Get slope for intercepts forced through zero
-      fitStarch  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance525']])
+      fitStarch  <- lm (concentrations ~ 0 + referenceValues)
     } else { # Get intercept and slope
-      fitStarch  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
+      fitStarch  <- lm (concentrations ~ referenceValues)
     }
 
+    # Drop 250 from calibration curve if R2 is below 0.9
+    #----------------------------------------------------------------------------------
+    if (summary (fitStarch)$r.squared < 0.9) {
+      indexToDrop <- which (concentrations == 250.0)
+      concentrations <- concentrations [-indexToDrop]
+      referenceValues <- referenceValues [-indexToDrop]
+      if (forceIntercept) { # Get slope for intercepts forced through zero
+        fitStarch  <- lm (concentrations ~ 0 + referenceValues)
+      } else { # Get intercept and slope
+        fitStarch  <- lm (concentrations ~ referenceValues)
+      }
+    }
+
+    # check whether calibration curve is sufficiently precise
+    #----------------------------------------------------------------------------------
+    if (summary (fitStarch)$r.squared < 0.9) {
+      stop (paste ('Error: the calibration curve for batch ',batch,' on the ',
+                   analysisDate,' has an R2 lower than 0.9.', sep = ''))
+    }
     # Create fileName for the pdf
     #----------------------------------------------------------------------------------
     fileName <- paste ("calibrationCurve_",format (analysisDate, "%Y-%m-%d"),
@@ -165,24 +184,24 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
 
     # Plot the starch calibration curve
     #----------------------------------------------------------------------------------
-    plot (x = referenceValues [['CorrectedMeanAbsorbance525']],
+    plot (x = referenceValues,
           y = concentrations,
           main = paste ('calibration curve for starch (batch ',batch,'; ',analysisDate,')', sep = ''),
           las = 1,
           xlab = 'absorbance at 525 nm',
           ylab = 'glucose equivalent (mg / ml)')
-    points (x = referenceValues [['CorrectedMeanAbsorbance525']],
+    points (x = referenceValues,
             y = concentrations,
             col = '#91b9a499',
             pch = 19)
     abline (fitStarch,
             col = 'grey',
             lwd = 2, lty = 2)
-    text (x = mean (referenceValues [['CorrectedMeanAbsorbance525']]),
+    text (x = mean (referenceValues),
           y = 20,
           labels = expression (paste (R^2,' = ', sep = '')),
           pos = 4)
-    text (x = mean (referenceValues [['CorrectedMeanAbsorbance525']]) * 1.1,
+    text (x = mean (referenceValues) * 1.1,
           y = 20,
           labels = round (summary (fitStarch)$r.squared, 3),
           pos = 4)
