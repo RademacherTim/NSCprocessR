@@ -6,7 +6,7 @@
 #' @param cvLimitTube Limit for the coefficient of variation within a tube at which the sample is flagged for re-measurement.
 #' @param forceIntercept Logical variable describing whether to force the calibration curve intercept through 0 or not.
 #' @return The processed data, results of the anyalsis and a summary.
-#' @import tidyverse
+#' @import tibble
 #' @export
 processNSCs <- function (rawData,
                          cvLimitSample = 0.25,
@@ -78,9 +78,9 @@ processNSCs <- function (rawData,
   for (batch in batches) {
     dates <- unique (rawData [['DateOfSugarAnalysis']] [rawData [['BatchID']] == batch])
     if (batch == batches [1]) {
-      extractionsSugar <- tibble (batch = batch, date = dates)
+      extractionsSugar <- tibble::tibble (batch = batch, date = dates)
     } else {
-      extractionsSugar <- add_row (extractionsSugar, batch = batch, date = dates)
+      extractionsSugar <- tibble::add_row (extractionsSugar, batch = batch, date = dates)
     }
   }
   # Delete rows that do not have calibration curves
@@ -302,7 +302,7 @@ processNSCs <- function (rawData,
       if (meanPotatoMassRecovered >
           mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0) { # Maybe I should just drop to one high value?
         meanPotatoMass <- mean (LCSPotato [['MassSample']])
-        rawData [['SRHigh']] [batchCondition] <- 'Y'
+        rawData [['SRFHigh']] [batchCondition] <- 'Y'
       } else {
         meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction
       }
@@ -314,33 +314,6 @@ processNSCs <- function (rawData,
       # Set batch's mean starch recovery rate
       #----------------------------------------------------------------------------------
       rawData [['MeanStarchRecovery']] [batchCondition] <- meanRecoveryPer
-    }
-  }
-
-  # Check whether Lab Control Standard for Oak wood is high
-  #----------------------------------------------------------------------------------
-  if (LCS == 'Oak') {
-    for (extraction in 1:(dim (extractionsSugar) [1])) { # TTR Should this be run for sugar or starch or both?
-
-      # Get date of analysis and batch number
-      #--------------------------------------------------------------------------------------
-      analysisDate <- extractionsStarch [['date']]  [extraction]
-      batch        <- extractionsStarch [['batch']] [extraction]
-
-      # Get absorbances for potato starch for each combination of batch and analysisDate
-      #----------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 7)      == 'LCS Oak'    &
-                              rawData [['BatchID']]              == batch        &
-                              rawData [['DateOfStarchAnalysis']] == analysisDate
-
-      # get LCS Oak standard and compare it against threshold
-      #----------------------------------------------------------------------------------
-      LCSOak <- rawData [['MassSugar']] [refCondition]
-      # TTR What is a good threshold?
-      # TTR Should we use the mass or concentration?
-      # TTR For sugar or starch or both?
-
-
     }
   }
 
@@ -364,6 +337,57 @@ processNSCs <- function (rawData,
   rawData [['ConcentrationSugarPerDW']]  <- rawData [['ConcentrationSugarMgG']]  / 10.0
   rawData [['ConcentrationStarchPerDW']] <- rawData [['ConcentrationStarchMgG']] / 10.0
 
+  # Check whether Lab Control Standard for Oak wood is high
+  #----------------------------------------------------------------------------------
+  if (LCS == 'Oak') {
+    for (extraction in 1:(dim (extractionsSugar) [1])) {
+
+      # Get date of analysis and batch number
+      #--------------------------------------------------------------------------------------
+      analysisDate <- extractionsStarch [['date']]  [extraction]
+      batch        <- extractionsStarch [['batch']] [extraction]
+
+      # Get absorbances for potato starch for each combination of batch and analysisDate
+      #----------------------------------------------------------------------------------
+      refCondition <- substr (rawData [['SampleID']], 1, 7)      == 'LCS Oak'    &
+                              rawData [['BatchID']]              == batch        &
+                              rawData [['DateOfStarchAnalysis']] == analysisDate
+
+      # check whether thebatch has a LCS Oak
+      #----------------------------------------------------------------------------------
+      if (sum (refCondition) == 0) {
+        warning (paste ('Warning: There is no LCS Oak for batch ',batch,
+                        ' analysed on the ',analysisDate,'.', sep = ''))
+      } else { # Check the LCS Oak is low or high
+        # get LCS Oak standard and compare it against threshold
+        #--------------------------------------------------------------------------------
+        LCSOakSugar  <- rawData [['ConcentrationSugarPerDW']]  [refCondition]
+        LCSOakStarch <- rawData [['ConcentrationStarchPerDW']] [refCondition]
+
+        # Flag for high or low oak lab standard
+        #--------------------------------------------------------------------------------
+        rawData [['LCSOakDeviation']] <- 'N'
+
+        # oak sugar was 3.59+-0.38 % DW at Harvard and 3.28+-0.51 at NAU thus far
+        #--------------------------------------------------------------------------------
+        if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
+            mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
+          rawData [['LCSOakDeviation']] <- 'sugar'
+        }
+        # oak starch was 2.45+-0.21 % DW at Harvard and 2.91+-0.33 at NAU thus far
+        #--------------------------------------------------------------------------------
+        if (mean  (LCSOakStarch, na.rm = T) < 2.45-0.21 &
+            mean (LCSOakStarch, na.rm = T) > 2.45+0.21) {
+          if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
+              mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
+            rawData [['LCSOakDeviation']] <- 'sugar & starch'
+          } else {
+            rawData [['LCSOakDeviation']] <- 'starch'
+          }
+        }
+      } # End sum (refCondition) == 0 condition
+    } # End extraction loop
+  } # End LCS == Oak condition
 
   # Declare data as processed
   #--------------------------------------------------------------------------------------
