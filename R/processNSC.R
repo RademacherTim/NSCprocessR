@@ -232,6 +232,26 @@ processNSCs <- function (rawData,
       fitStarch  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
     }
 
+    # Drop 250 from calibration curve if R2 is below 0.9
+    #----------------------------------------------------------------------------------
+    if (summary (fitStarch)$r.squared < 0.9) {
+      indexToDrop <- which (concentrations == 250.0)
+      concentrations <- concentration [-index]
+      referenceValues [['CorrectedMeanAbsorbance525']] <- referenceValues [['CorrectedMeanAbsorbance525']] [-index]
+      if (forceIntercept) { # Get slope for intercepts forced through zero
+        fitStarch  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance525']])
+      } else { # Get intercept and slope
+        fitStarch  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
+      }
+    }
+
+    # check whether calibration curve is sufficiently precise
+    #----------------------------------------------------------------------------------
+    if (summary (fitStarch)$r.squared < 0.9) {
+      stop (paste ('Error: the calibration curve for batch ',batch,' on the ',
+                   analysisDate,' has an R2 lower than 0.9.', sep = ''))
+    }
+
     # Add the slopes and intercepts to respective rows in the tibble
     #----------------------------------------------------------------------------------
     if (forceIntercept) { # intercept forced through 0.0
