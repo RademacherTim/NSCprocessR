@@ -43,6 +43,31 @@ plotLabControlStandards <- function (data) {
             col = '#91b9a499',
             pch = 19,
             ylim  = c (0, 1.5*max (concentrationsOfStds)))
+      if (standard == 'LCS Oak') {
+        # Add morgan's interval of variation
+        #--------------------------------------------------------------------------------
+        rect (xleft   = min (dates) - 86400*365,
+              xright  = max (dates) + 86400*365,
+              ybottom = 3.59-0.38,
+              ytop    = 3.59+0.38,
+              col = "#33333333",
+              lty = 0)
+        abline (h = 3.59,
+                col = '#66666666')
+
+        # Add jim's interval of variation
+        #--------------------------------------------------------------------------------
+        rect (xleft   = min (dates) - 86400*365,
+              xright  = max (dates) + 86400*365,
+              ybottom = 2.45-0.21,
+              ytop    = 2.45+0.21,
+              col = "#91b9a444",
+              lty = 0)
+        abline (h = 2.45,
+                col = '#10647066',
+                lty = 2)
+      }
+
       # Add the mean and standard deviation
       #----------------------------------------------------------------------------------
       means <- aggregate (concentrationsOfStds, by = list (dates), FUN = mean)
@@ -59,6 +84,16 @@ plotLabControlStandards <- function (data) {
               y = means [, 2],
               pch = 15,
               col = '#DC143C99')
+
+      # add legend
+      #----------------------------------------------------------------------------------
+      legend (x = min (dates),
+              y = 1.5*max (concentrationsOfStds),
+              legend = c ('mean ± standard deviation','individual measurement'),
+              pch = c (15, 19),
+              col = c ('#DC143C99','#91b9a499'),
+              box.lty = 0,
+              bg = 'transparent')
 
       # close graphics device
       #----------------------------------------------------------------------------------

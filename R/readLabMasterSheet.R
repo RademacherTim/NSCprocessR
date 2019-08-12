@@ -23,7 +23,7 @@ readLabMasterSheet <- function (fileDir, fileName, IDs = c ('SampleID')){
   types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 19), 'text',
               rep ('numeric', 2), 'text', 'numeric','text', rep ('numeric', 6), 'text',
               rep ('numeric', 6), 'text')
-  master <- readxl::read_excel (fullPath, col_types = types)  [, 1:(41 + nIDs)]
+  master <- readxl::read_excel (fullPath, col_types = types)  [, 1:(43 + nIDs)]
 
   # Return the tibble with all necessary information
   #---------------------------------------------------------------------------------------

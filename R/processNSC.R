@@ -15,6 +15,10 @@ processNSCs <- function (rawData,
                          maxStarchRecoveryFraction = 0.9,
                          LCS = 'Oak') {
 
+  # Load dependencies
+  #--------------------------------------------------------------------------------------
+  library ('tidyverse')
+
   # Calculate the sample weight [g] and convert to [mg]
   #--------------------------------------------------------------------------------------
   rawData [['MassSample']] <- (rawData [['MassOfTubeAndSample']] -
