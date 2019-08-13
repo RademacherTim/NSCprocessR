@@ -18,6 +18,7 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
       extractionsSugar <- add_row (extractionsSugar, batch = batch, date = dates)
     }
   }
+
   # Delete rows that do not have calibration curves
   #--------------------------------------------------------------------------------------
   if (sum (is.na (extractionsSugar [['date']])) > 0) {
@@ -34,6 +35,7 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
       extractionsStarch <- add_row (extractionsStarch, batch = batch, date = dates)
     }
   }
+
   # Delete rows that do not have calibration curves
   #--------------------------------------------------------------------------------------
   if (sum (is.na (extractionsStarch [['date']])) > 0) {
@@ -129,25 +131,25 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     batch <- extractionsStarch [['batch']] [extraction]
 
     # Get absorbances for reference values to create a calibration curve for each batch
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     condition <- substr (data [['SampleID']], 1, 3)      == 'REF' &
                          data [['BatchID']]              == batch &
                          data [['DateOfStarchAnalysis']] == analysisDate
     referenceValues <- data [condition, ] [['CorrectedMeanAbsorbance525']]
 
     # Get reference solution concentrations
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     concentrations <- substr (data [['SampleID']] [condition],
                               4,
                               nchar (data [['SampleID']] [condition]))
 
     # Set reference solution concentrations to 200 for starch
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
     concentrations <- as.numeric (concentrations)
 
     # Get the slope and intercept (startch = slope * absorbance + intercept)
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     if (forceIntercept) { # Get slope for intercepts forced through zero
       fitStarch  <- lm (concentrations ~ 0 + referenceValues)
     } else { # Get intercept and slope
@@ -155,7 +157,7 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     }
 
     # Drop 250 from calibration curve if R2 is below 0.9
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     if (summary (fitStarch)$r.squared < 0.9) {
       indexToDrop <- which (concentrations == 250.0)
       concentrations <- concentrations [-indexToDrop]
@@ -168,22 +170,22 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
     }
 
     # check whether calibration curve is sufficiently precise
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     if (summary (fitStarch)$r.squared < 0.9) {
-      stop (paste ('Error: the calibration curve for batch ',batch,' on the ',
+      warning (paste ('Warning: the calibration curve for batch ',batch,' on the ',
                    analysisDate,' has an R2 lower than 0.9.', sep = ''))
     }
     # Create fileName for the pdf
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     fileName <- paste ("calibrationCurve_",format (analysisDate, "%Y-%m-%d"),
                        "_batch",batch,"_starch.pdf", sep = "")
 
     # Open the pdf
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     pdf (file = fileName)
 
     # Plot the starch calibration curve
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     plot (x = referenceValues,
           y = concentrations,
           main = paste ('calibration curve for starch (batch ',batch,'; ',analysisDate,')', sep = ''),
@@ -207,11 +209,12 @@ plotCalibrationCurves <- function (data, forceIntercept = FALSE) {
           pos = 4)
 
     # close graphics device
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     dev.off ()
   }
 
   # Return zero exit status, if it ran smoothly
+  #--------------------------------------------------------------------------------------
   return (0)
 }
 # To do list:

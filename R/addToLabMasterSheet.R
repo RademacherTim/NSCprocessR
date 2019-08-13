@@ -10,15 +10,15 @@
 addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) {
 
   # get the number of ID coumns
-  #----------------------------------------------------------------------------------
+  #--------------------------------------------------------------------------------------
   nIDs <- length (IDs)
 
   # Paste directory name and file name to get a full path
-  #----------------------------------------------------------------------------------
+  #--------------------------------------------------------------------------------------
   fullPath <- paste (fileDir,'/',fileName, sep = '')
 
   # Check whether master sheet exists for lab and create it
-  #----------------------------------------------------------------------------------
+  #--------------------------------------------------------------------------------------
   if (!file.exists (fullPath)) { # If master sheet does NOT exist, create it with the data
     openxlsx::write.xlsx (x         = data,
                           file      = fullPath,
@@ -63,11 +63,11 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
                                       "ConcentrationStarchPerDW","LCSOakDeviation"))
 
     # Delete duplicate rows in temp, in case the data had already been added
-    #----------------------------------------------------------------------------------
-    temp %>% distinct (temp, .keep_all = TRUE) # TTR currently returns a warning, but seems to work fine. And future releases of distinct should nfix this bug.
+    #------------------------------------------------------------------------------------
+    temp <- distinct (temp, .keep_all = TRUE)
 
     # Overwrite the old master sheet with the new version
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     openxlsx::write.xlsx (x         = temp,
                           file      = fullPath,
                           sheetName = "Master",
@@ -77,8 +77,9 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
                           keepNA    = FALSE) # Empty cells for NAs
   }
 
-  # Return zero if the function ran smoothly and data has been successfully appended to the master sheet
-  #----------------------------------------------------------------------------------
+  # Return zero if the function ran smoothly and data has been successfully appended to
+  # the master sheet
+  #--------------------------------------------------------------------------------------
   return (0)
 }
 # To-do list:

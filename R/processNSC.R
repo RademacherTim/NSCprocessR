@@ -17,7 +17,7 @@ processNSCs <- function (rawData,
 
   # Load dependencies
   #--------------------------------------------------------------------------------------
-  library ('tidyverse')
+  if (!existsFunction ('tibble')) library ('tidyverse')
 
   # Calculate the sample weight [g] and convert to [mg]
   #--------------------------------------------------------------------------------------
@@ -103,6 +103,7 @@ processNSCs <- function (rawData,
       extractionsStarch <- add_row (extractionsStarch, batch = batch, date = dates)
     }
   }
+
   # Delete rows that do not have calibration curves
   #--------------------------------------------------------------------------------------
   if (sum (is.na (extractionsStarch [['date']])) > 0) {
@@ -169,9 +170,10 @@ processNSCs <- function (rawData,
 
     # Get absorbances for reference values to create a calibration curve for each batch
     #----------------------------------------------------------------------------------
-    refCondition <- substr (rawData [['SampleID']], 1, 3)      == 'REF' &
-                            rawData [['BatchID']]              == batch &
-                            rawData [['DateOfStarchAnalysis']] == analysisDate
+    refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
+                    rawData [['BatchID']]                 == batch        &
+                    rawData [['DateOfStarchAnalysis']]    == analysisDate &
+                    !is.na (rawData [['SampleID']])
     batchCondition <- rawData [['BatchID']]              == batch &
                       rawData [['DateOfStarchAnalysis']] == analysisDate
     referenceValues <- rawData [refCondition, ]
@@ -189,7 +191,7 @@ processNSCs <- function (rawData,
 
     # Get the batch's mean absorbance at 525nm for tube blanks
     #--------------------------------------------------------------------------------
-    if (sum (rawData [['SampleID']] == 'TB' & batchCondition) > 0.0) {
+    if (sum (rawData [['SampleID']] == 'TB' & batchCondition, na.rm = T) > 0.0) {
       batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB' &
                                                                   batchCondition],
                                  na.rm = T)
@@ -252,8 +254,8 @@ processNSCs <- function (rawData,
     # check whether calibration curve is sufficiently precise
     #----------------------------------------------------------------------------------
     if (summary (fitStarch)$r.squared < 0.9) {
-      stop (paste ('Error: the calibration curve for batch ',batch,' on the ',
-                   analysisDate,' has an R2 lower than 0.9.', sep = ''))
+      warning (paste ('Warning: the calibration curve for batch ',batch,' on the ',
+                      analysisDate,' has an R2 lower than 0.9.', sep = ''))
     }
 
     # Add the slopes and intercepts to respective rows in the tibble
@@ -306,9 +308,10 @@ processNSCs <- function (rawData,
 
     # Get absorbances for potato starch for each combination of batch and analysisDate
     #----------------------------------------------------------------------------------
-    refCondition <- substr (rawData [['SampleID']], 1, 10)     == 'LCS Potato' &
-                            rawData [['BatchID']]              == batch        &
-                            rawData [['DateOfStarchAnalysis']] == analysisDate
+    refCondition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
+                    rawData [['BatchID']]                  == batch        &
+                    rawData [['DateOfStarchAnalysis']]     == analysisDate &
+                    !is.na (rawData [['SampleID']])
     batchCondition <- rawData [['BatchID']]              == batch        &
                       rawData [['DateOfStarchAnalysis']] == analysisDate
 
@@ -318,7 +321,7 @@ processNSCs <- function (rawData,
 
     # Check whether potato standard was run at all, otherwise use maxStarchRecoveryFraction
     #----------------------------------------------------------------------------------
-    if (sum (refCondition) == 0) {
+    if (sum (refCondition, na.rm = T) == 0) {
       rawData [['MeanStarchRecovery']] [batchCondition] <- maxStarchRecoveryFraction
     } else {
       LCSPotato <- rawData [refCondition, ]
@@ -373,9 +376,10 @@ processNSCs <- function (rawData,
 
       # Get absorbances for potato starch for each combination of batch and analysisDate
       #----------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 7)      == 'LCS Oak'    &
-                              rawData [['BatchID']]              == batch        &
-                              rawData [['DateOfStarchAnalysis']] == analysisDate
+      refCondition <- substr (rawData [['SampleID']], 1, 7) == 'LCS Oak'    &
+                      rawData [['BatchID']]                 == batch        &
+                      rawData [['DateOfStarchAnalysis']]    == analysisDate &
+                      !is.na (rawData [['SampleID']])
 
       # check whether thebatch has a LCS Oak
       #----------------------------------------------------------------------------------
