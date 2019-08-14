@@ -33,8 +33,8 @@ processNSCs <- function (rawData,
                           rawData [['SampleID']]                   != 'TB'              &
                           substring (rawData [['SampleID']], 1, 3) != 'REF'             &
                           substring (rawData [['SampleID']], 1, 3) != 'LCS')
-  rawData <- rawData [-indicesToDrop, ]
   if (length (indicesToDrop) >= 1) {
+    rawData <- rawData [-indicesToDrop, ]
     warning (cat (sprintf ('Warning: %s samples are excluded from the analysis,',
                            length (indicesToDrop)),
                   sprintf ('because their sample mass is below the threshold of %s mg.',
