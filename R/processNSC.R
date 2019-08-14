@@ -5,6 +5,7 @@
 #' @param cvLimitSample Limit for the coefficient of variation within a sample at which the sample if flagged for re-measurement.
 #' @param cvLimitTube Limit for the coefficient of variation within a tube at which the sample is flagged for re-measurement.
 #' @param forceIntercept Logical variable describing whether to force the calibration curve intercept through 0 or not.
+#' @param minimumSampleMass Threshold weight in milligram below which samples are dropped because they are unreliable. The threshold is set to 5 mg by default.
 #' @return The processed data, results of the anyalsis and a summary.
 #' @import tibble
 #' @export
@@ -13,7 +14,8 @@ processNSCs <- function (rawData,
                          cvLimitTube = 0.05, # Should this be 0.10 or 10% error, as suggested by Jim?
                          forceIntercept = FALSE,
                          maxStarchRecoveryFraction = 0.9,
-                         LCS = 'Oak') {
+                         LCS = 'Oak',
+                         minimumSampleMass = 5.0) {
 
   # Load dependencies
   #--------------------------------------------------------------------------------------
@@ -23,6 +25,21 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   rawData [['MassSample']] <- (rawData [['MassOfTubeAndSample']] -
                                rawData [['MassOfEmptyTube']]) * 1e3
+
+  # check whether a sample weight is below 10 mg and drop it if it is.
+  #--------------------------------------------------------------------------------------
+  indicesToDrop <- which (rawData [['MassSample']]                 <  minimumSampleMass &
+                          rawData [['SampleID']]                   != 'B'               &
+                          rawData [['SampleID']]                   != 'TB'              &
+                          substring (rawData [['SampleID']], 1, 3) != 'REF'             &
+                          substring (rawData [['SampleID']], 1, 3) != 'LCS')
+  rawData <- rawData [-indicesToDrop, ]
+  if (length (indicesToDrop) >= 1) {
+    warning (cat (sprintf ('Warning: %s samples are excluded from the analysis,',
+                           length (indicesToDrop)),
+                  sprintf ('because their sample mass is below the threshold of %s mg.',
+                           minimumSampleMass)))
+  }
 
   # Get indices for samples with negative weight
   #--------------------------------------------------------------------------------------
