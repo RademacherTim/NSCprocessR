@@ -35,10 +35,9 @@ processNSCs <- function (rawData,
                           substring (rawData [['SampleID']], 1, 3) != 'LCS')
   if (length (indicesToDrop) >= 1) {
     rawData <- rawData [-indicesToDrop, ]
-    warning (cat (sprintf ('Warning: %s samples are excluded from the analysis,',
-                           length (indicesToDrop)),
-                  sprintf ('because their sample mass is below the threshold of %s mg.',
-                           minimumSampleMass)))
+    warning (paste ('Warning: ',length (indicesToDrop),' samples are excluded because ',
+                    'their sample mass is below the threshold of ',minimumSampleMass,
+                    ' mg.', sep = ''))
   }
 
   # Get indices for samples with negative weight
@@ -67,7 +66,8 @@ processNSCs <- function (rawData,
   rawData [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = T)
   rawData [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = T)
   rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
-                                              rawData [['Absorbance490_Blank']] # TTR Some corrected mean absorbances are negative.
+                                              min (rawData [['Absorbance490_Blank']],
+                                                   rawData [['MeanAbsorbance490']])
 
   # Calculate the within-sample coefficient of variation
   #--------------------------------------------------------------------------------------
@@ -104,6 +104,7 @@ processNSCs <- function (rawData,
       extractionsSugar <- tibble::add_row (extractionsSugar, batch = batch, date = dates)
     }
   }
+
   # Delete rows that do not have calibration curves
   #--------------------------------------------------------------------------------------
   if (sum (is.na (extractionsSugar [['date']])) > 0) {
@@ -218,14 +219,15 @@ processNSCs <- function (rawData,
 
 
     # Determine correction factor from TB, unless they are larger than the sample
-    # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm
+    # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
+    # the smallest mean absorbance to avoid negetive numbers due to the correction.
     #--------------------------------------------------------------------------------
     batchCorrection <- min (batchTBAbsorbance,
                             rawData [['MeanAbsorbance525']] [batchCondition])
 
     # Flag for higher TB than MeanAbsorbance525
     #--------------------------------------------------------------------------------
-    if (batchTBAbsorbance != batchTBAbsorbance) {
+    if (batchCorrection != batchTBAbsorbance) {
       rawData [['TBHigh']] [batchCondition] <- 'Y'
     } else {
       rawData [['TBHigh']] [batchCondition] <- 'N'
