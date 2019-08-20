@@ -182,8 +182,10 @@ processNSCs <- function (rawData,
       indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
                               referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2])
     }
-    referenceValues <- referenceValues [-indicesToDrop, ]
-    concentrations  <- concentrations  [-indicesToDrop]
+    if (length (indicesToDrop) > 0) {
+      referenceValues <- referenceValues [-indicesToDrop, ]
+      concentrations  <- concentrations  [-indicesToDrop]
+    }
 
     # Get the slope and intercept
     #----------------------------------------------------------------------------------
