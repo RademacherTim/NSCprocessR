@@ -161,30 +161,35 @@ processNSCs <- function (rawData,
 
     # Get the range of absorbance values for the samples
     #----------------------------------------------------------------------------------
-    condition <- rawData [['BatchID']]                    == batch &
+    condition <- batchCondition                                    &
                  substring (rawData [['SampleID']], 1, 3) != 'REF' &
                  substring (rawData [['SampleID']], 1, 3) != 'LCS' &
                  substring (rawData [['SampleID']], 1, 1) != 'B'   &
                  substring (rawData [['SampleID']], 1, 2) != 'TB'  &
                  !is.na (rawData [['CorrectedMeanAbsorbance490']])
-    absorbanceRange <- range (rawData [['CorrectedMeanAbsorbance490']] [condition],
-                              na.rm = TRUE)
+    if (sum (condition, na.rm = TRUE) > 0) {
+      absorbanceRange <- range (rawData [['CorrectedMeanAbsorbance490']] [condition],
+                                na.rm = TRUE)
 
-    # Only use refence values that are within an order of magnitude of the sample
-    # absorbances
-    #----------------------------------------------------------------------------------
-    fitRange <- c (absorbanceRange [1] / 10.0, absorbanceRange [2] * 10.0)
-    if (fitRange [1] < epsilon) { # If the lower range is a very small number include REF0
-      indicesToDrop <- which ((referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
-                               referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2]) &
-                              referenceValues [['SampleID']] != 'REF0')
+      # Only use refence values that are within an order of magnitude of the sample
+      # absorbances
+      #--------------------------------------------------------------------------------
+      fitRange <- c (absorbanceRange [1] / 10.0, absorbanceRange [2] * 10.0)
+      if (fitRange [1] < epsilon) { # If the lower range is a very small number include REF0
+        indicesToDrop <- which ((referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
+                                 referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2]) &
+                                referenceValues [['SampleID']] != 'REF0')
+      } else {
+        indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
+                                referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2])
+      }
+      if (length (indicesToDrop) > 0) {
+        referenceValues <- referenceValues [-indicesToDrop, ]
+        concentrations  <- concentrations  [-indicesToDrop]
+      }
     } else {
-      indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
-                              referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2])
-    }
-    if (length (indicesToDrop) > 0) {
-      referenceValues <- referenceValues [-indicesToDrop, ]
-      concentrations  <- concentrations  [-indicesToDrop]
+     warning (paste ('Warning: There are no sugar samples in batch ',batch,
+                     ' analysed on the ',analysisDate, sep = ''))
     }
 
     # Get the slope and intercept
@@ -280,32 +285,36 @@ processNSCs <- function (rawData,
 
     # Get the range of absorbance values for the samples
     #----------------------------------------------------------------------------------
-    condition <- rawData [['BatchID']]                    == batch &
-                 substring (rawData [['SampleID']], 1, 3) != 'REF' &
-                 substring (rawData [['SampleID']], 1, 3) != 'LCS' &
-                 substring (rawData [['SampleID']], 1, 1) != 'B'   &
-                 substring (rawData [['SampleID']], 1, 2) != 'TB'  &
+    condition <- batchCondition                                   &
+                 substring (rawData [['SampleID']], 1, 3) != 'REF'&
+                 substring (rawData [['SampleID']], 1, 3) != 'LCS'&
+                 substring (rawData [['SampleID']], 1, 1) != 'B'  &
+                 substring (rawData [['SampleID']], 1, 2) != 'TB' &
                  !is.na (rawData [['CorrectedMeanAbsorbance525']])
-    absorbanceRange <- range (rawData [['CorrectedMeanAbsorbance525']] [condition],
-                              na.rm = TRUE)
+    if (sum (condition, na.rm = TRUE) > 0) {
+      absorbanceRange <- range (rawData [['CorrectedMeanAbsorbance525']] [condition],
+                                na.rm = TRUE)
 
-    # Only use refence values that are within an order of magnitude of the sample
-    # absorbances
-    #----------------------------------------------------------------------------------
-    fitRange <- c (absorbanceRange [1] / 10.0, absorbanceRange [2] * 10.0)
-    if (fitRange [1] < epsilon) { # If the lower range is a very small number include REF0
-      indicesToDrop <- which ((referenceValues [['CorrectedMeanAbsorbance525']] < fitRange [1] |
-                               referenceValues [['CorrectedMeanAbsorbance525']] > fitRange [2]) &
-                              referenceValues [['SampleID']] != 'REF0')
+      # Only use refence values that are within an order of magnitude of the sample
+      # absorbances
+      #--------------------------------------------------------------------------------
+      fitRange <- c (absorbanceRange [1] / 10.0, absorbanceRange [2] * 10.0)
+      if (fitRange [1] < epsilon) { # If the lower range is a very small number include REF0
+        indicesToDrop <- which ((referenceValues [['CorrectedMeanAbsorbance525']] < fitRange [1] |
+                                 referenceValues [['CorrectedMeanAbsorbance525']] > fitRange [2]) &
+                                referenceValues [['SampleID']] != 'REF0')
+      } else {
+        indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance525']] < fitRange [1] |
+                                referenceValues [['CorrectedMeanAbsorbance525']] > fitRange [2])
+      }
+      if (length (indicesToDrop) > 0) {
+        referenceValues <- referenceValues [-indicesToDrop, ]
+        concentrations  <- concentrations  [-indicesToDrop]
+      }
     } else {
-      indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance525']] < fitRange [1] |
-                              referenceValues [['CorrectedMeanAbsorbance525']] > fitRange [2])
+      warning (paste ('Warning: There are no starch samples in batch ',batch,
+                      ' analysed on the ',analysisDate,'.', sep = ''))
     }
-    if (length (indicesToDrop) > 0) {
-      referenceValues <- referenceValues [-indicesToDrop, ]
-      concentrations  <- concentrations  [-indicesToDrop]
-    }
-
     # Get the slope and intercept (startch = slope * absorbance + intercept)
     #----------------------------------------------------------------------------------
     if (forceIntercept) { # Get slope for intercepts forced through zero
