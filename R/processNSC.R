@@ -140,7 +140,7 @@ processNSCs <- function (rawData,
     refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
                             rawData [['BatchID']]             == batch &
                             rawData [['DateOfSugarAnalysis']] == analysisDate
-    referenceValues <- data  [['CorrectedMeanAbsorbance490']] [refCondition]
+    referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
 
     # Get reference solution concentrations
     #------------------------------------------------------------------------------------
@@ -211,11 +211,10 @@ processNSCs <- function (rawData,
     # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
     # the smallest mean absorbance to avoid negetive numbers due to the correction.
     #--------------------------------------------------------------------------------
-    batchCorrection <- min (batchTBAbsorbance,
-                            rawData [['MeanAbsorbance525']] [batchCondition &
-                                                             substring (data [['SampleID']], 1, 3) != 'REF' &
-                                                             substring (data [['SampleID']], 1, 2) != 'TB' &
-                                                             substring (data [['SampleID']], 1, 1) != 'B'])
+    condition <- batchCondition & substring (rawData [['SampleID']], 1, 3) != 'REF' &
+                                  substring (rawData [['SampleID']], 1, 2) != 'TB' &
+                                  substring (rawData [['SampleID']], 1, 1) != 'B'
+    batchCorrection <- min (batchTBAbsorbance, rawData [['MeanAbsorbance525']] [condition])
 
     # Flag for higher TB than MeanAbsorbance525
     #--------------------------------------------------------------------------------
