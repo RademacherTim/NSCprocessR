@@ -157,6 +157,7 @@ processNSCs <- function (rawData,
     # Set reference solution concentrations to 100 for sugars
     #----------------------------------------------------------------------------------
     concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
+    concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar
     concentrations <- as.numeric (concentrations)
 
     # Get the range of absorbance values for the samples
