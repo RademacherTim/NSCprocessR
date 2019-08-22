@@ -473,6 +473,10 @@ processNSCs <- function (rawData,
       if (sum (refCondition) == 0) {
         warning (paste ('Warning: There is no LCS Oak for batch ',batch,
                         ' analysed on the ',analysisDate,'.', sep = ''))
+
+        # Flag for high or low oak lab standard
+        #--------------------------------------------------------------------------------
+        rawData [['LCSOakDeviation']] <- NA
       } else { # Check the LCS Oak is low or high
         # get LCS Oak standard and compare it against threshold
         #--------------------------------------------------------------------------------
