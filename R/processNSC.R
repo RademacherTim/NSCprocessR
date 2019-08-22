@@ -157,7 +157,7 @@ processNSCs <- function (rawData,
     # Set reference solution concentrations to 100 for sugars
     #----------------------------------------------------------------------------------
     concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
-    concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar
+    concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar  # TR Waiting to hear from Jim to confirm this.
     concentrations <- as.numeric (concentrations)
 
     # Get the range of absorbance values for the samples
@@ -241,6 +241,7 @@ processNSCs <- function (rawData,
     # Set reference solution concentrations to 200 for starch
     #----------------------------------------------------------------------------------
     concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
+    concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch # TR Waiting to hear from Jim to confirm this.
     concentrations <- as.numeric (concentrations)
 
     # Get the batch's mean absorbance at 525nm for tube blanks
