@@ -131,39 +131,39 @@ processNSCs <- function (rawData,
   for (extraction in 1:(dim (extractionsSugar) [1])) {
 
     # Get date of analysis and batch number
-    #--------------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     analysisDate <- extractionsSugar [['date']]  [extraction]
     batch        <- extractionsSugar [['batch']] [extraction]
 
     # Get absorbances for reference values to create a calibration curve for each batch
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
                             rawData [['BatchID']]             == batch &
                             rawData [['DateOfSugarAnalysis']] == analysisDate
     referenceValues <- data  [['CorrectedMeanAbsorbance490']] [refCondition]
 
     # Get reference solution concentrations
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
                               nchar (rawData [['SampleID']] [refCondition]))
 
     # Set reference solution concentrations to 100 for sugars
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
     concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar  # TR Waiting to hear from Jim to confirm this.
     concentrations <- as.numeric (concentrations)
 
     # Sort out reference values with an absorbance above 1.0
-    #----------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------------
     indicesToKeep <- which (referenceValues >= -0.1 &
-                              referenceValues <=  1.1)
+                            referenceValues <=  1.1)
     referenceValues <- referenceValues [indicesToKeep]
     concentrations  <- concentrations  [indicesToKeep]
 
-    # Get the slope and intercept of a linear curve forced through 0 to make sure no
-    # are estimated to be negative values
-    #----------------------------------------------------------------------------------
-    # sugar <- slope * absorbance + intercept
+    # Get the slope of a linear curve forced through 0 to make sure no values are
+    # estimated to be negative values
+    #------------------------------------------------------------------------------------
+    # sugar <- slope * absorbance
     fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
 
     # Check for outliers (residual > 2.0 * sigma) and take them out
@@ -174,14 +174,16 @@ processNSCs <- function (rawData,
       referenceValues <- referenceValues [-indicesToDrop]
     }
 
-    # Get the slope and intercept (startch = slope * absorbance + intercept)
+    # Get the slope (startch = slope * absorbance)
     #------------------------------------------------------------------------------------
     fitSugar <- lm (concentrations ~ 0 + referenceValues)
 
-    # Add the slopes and intercepts to respective rows in the tibble
-    #----------------------------------------------------------------------------------
-    rawData [['InterceptSugar']]  [batchCondition] <- 0.0
-    rawData [['SlopeSugar']]      [batchCondition] <- fitSugar$coefficients
+    # Add the slopes to the tibble
+    #------------------------------------------------------------------------------------
+    batchCondition <- rawData [['BatchID']]              == batch &
+                      rawData [['DateOfStarchAnalysis']] == analysisDate
+    rawData [['SlopeSugar']] [batchCondition] <- fitSugar$coefficients
+
   } # End of extraction loop
 
   # Make and save a starch calibration curve for each combination of batch and date
@@ -263,7 +265,7 @@ processNSCs <- function (rawData,
     indicesToKeep <- which (referenceValues >= -0.1 &
                             referenceValues <= 1.1)
 
-    # Get the slope and intercept (startch = slope * absorbance + intercept)
+    # Get the slope (startch = slope * absorbance)
     #------------------------------------------------------------------------------------
     fitStarchAll <- lm (concentrations ~ 0 + referenceValues)
 
@@ -275,22 +277,20 @@ processNSCs <- function (rawData,
       referenceValues <- referenceValues [-indicesToDrop]
     }
 
-    # Get the slope and intercept (startch = slope * absorbance + intercept)
+    # Get the slope (startch = slope * absorbance)
     #------------------------------------------------------------------------------------
     fitStarch <- lm (concentrations ~ 0 + referenceValues)
 
-    # Add the slopes and intercepts to respective rows in the tibble
+    # Add the slopes to the tibble
     #----------------------------------------------------------------------------------
-    rawData [['InterceptStarch']] [batchCondition] <- 0.0
-    rawData [['SlopeStarch']]     [batchCondition] <- fitStarch$coefficients
+    rawData [['SlopeStarch']] [batchCondition] <- fitStarch$coefficients
 
   } # End of starch extractions loop
 
   # Determine concentrations from absorbance values for sugar # Call it a concentrations [mg ml-1]
   #--------------------------------------------------------------------------------------
   rawData [['ConcentrationSugar']] <- rawData [['CorrectedMeanAbsorbance490']] *
-                                      rawData [['SlopeSugar']] +
-                                      rawData [['InterceptSugar']]
+                                      rawData [['SlopeSugar']]
   rawData [['ConcentrationSugar']] [rawData [['ConcentrationSugar']] < 0.0   |
                                     is.na  (rawData [['ConcentrationSugar']])|
                                     is.nan (rawData [['ConcentrationSugar']])] <- NA
@@ -304,8 +304,7 @@ processNSCs <- function (rawData,
   # Determine concentration of strach [mg ml-1] from absorbance
   #--------------------------------------------------------------------------------------
   rawData [['ConcentrationStarch']] <- rawData [['CorrectedMeanAbsorbance525']] *
-                                       rawData [['SlopeStarch']] +
-                                       rawData [['InterceptStarch']]
+                                       rawData [['SlopeStarch']]
   rawData [['ConcentrationStarch']] [rawData [['ConcentrationStarch']] < 0.0   |
                                       is.na  (rawData [['ConcentrationStarch']])|
                                       is.nan (rawData [['ConcentrationStarch']])] <- NA
