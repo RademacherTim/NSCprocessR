@@ -4,20 +4,16 @@
 #' @param rawData Tibble containing the raw data, as read in by the readRawNSCData function.
 #' @param cvLimitSample Limit for the coefficient of variation within a sample at which the sample if flagged for re-measurement.
 #' @param cvLimitTube Limit for the coefficient of variation within a tube at which the sample is flagged for re-measurement.
-#' @param forceIntercept Logical variable describing whether to force the calibration curve intercept through 0 or not.
 #' @param minimumSampleMass Threshold weight in milligram below which samples are dropped because they are unreliable. The threshold is set to 5 mg by default.
-#' @param espilon A very small number, which is the threshold of when the REF0 is included in the calibration curve.
 #' @return The processed data, results of the anyalsis and a summary.
 #' @import tibble
 #' @export
 processNSCs <- function (rawData,
                          cvLimitSample = 0.25,
                          cvLimitTube = 0.05, # Should this be 0.10 or 10% error, as suggested by Jim?
-                         forceIntercept = FALSE,
                          maxStarchRecoveryFraction = 0.9,
                          LCS = 'Oak',
-                         minimumSampleMass = 5.0,
-                         epsilon = 0.01) {
+                         minimumSampleMass = 5.0) {
 
   # Load dependencies
   #--------------------------------------------------------------------------------------
@@ -144,14 +140,11 @@ processNSCs <- function (rawData,
     refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
                             rawData [['BatchID']]             == batch &
                             rawData [['DateOfSugarAnalysis']] == analysisDate
-    batchCondition <- rawData [['BatchID']]             == batch &
-                      rawData [['DateOfSugarAnalysis']] == analysisDate
-    referenceValues <- rawData [refCondition, ]
+    referenceValues <- data  [['CorrectedMeanAbsorbance490']] [refCondition]
 
     # Get reference solution concentrations
     #----------------------------------------------------------------------------------
-    concentrations <- substr (rawData [['SampleID']] [refCondition],
-                              4,
+    concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
                               nchar (rawData [['SampleID']] [refCondition]))
 
     # Set reference solution concentrations to 100 for sugars
@@ -160,57 +153,35 @@ processNSCs <- function (rawData,
     concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar  # TR Waiting to hear from Jim to confirm this.
     concentrations <- as.numeric (concentrations)
 
-    # Get the range of absorbance values for the samples
+    # Sort out reference values with an absorbance above 1.0
     #----------------------------------------------------------------------------------
-    condition <- batchCondition                                    &
-                 substring (rawData [['SampleID']], 1, 3) != 'REF' &
-                 substring (rawData [['SampleID']], 1, 3) != 'LCS' &
-                 substring (rawData [['SampleID']], 1, 1) != 'B'   &
-                 substring (rawData [['SampleID']], 1, 2) != 'TB'  &
-                 !is.na (rawData [['CorrectedMeanAbsorbance490']])
-    if (sum (condition, na.rm = TRUE) > 0) {
-      absorbanceRange <- range (rawData [['CorrectedMeanAbsorbance490']] [condition],
-                                na.rm = TRUE)
+    indicesToKeep <- which (referenceValues >= -0.1 &
+                              referenceValues <=  1.1)
+    referenceValues <- referenceValues [indicesToKeep]
+    concentrations  <- concentrations  [indicesToKeep]
 
-      # Only use refence values that are within an order of magnitude of the sample
-      # absorbances
-      #--------------------------------------------------------------------------------
-      fitRange <- c (absorbanceRange [1] / 10.0, absorbanceRange [2] * 10.0)
-      if (fitRange [1] < epsilon) { # If the lower range is a very small number include REF0
-        indicesToDrop <- which ((referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
-                                 referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2]) &
-                                referenceValues [['SampleID']] != 'REF0')
-      } else {
-        indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance490']] < fitRange [1] |
-                                referenceValues [['CorrectedMeanAbsorbance490']] > fitRange [2])
-      }
-      if (length (indicesToDrop) > 0) {
-        referenceValues <- referenceValues [-indicesToDrop, ]
-        concentrations  <- concentrations  [-indicesToDrop]
-      }
-    } else {
-     warning (paste ('Warning: There are no sugar samples in batch ',batch,
-                     ' analysed on the ',analysisDate, sep = ''))
+    # Get the slope and intercept of a linear curve forced through 0 to make sure no
+    # are estimated to be negative values
+    #----------------------------------------------------------------------------------
+    # sugar <- slope * absorbance + intercept
+    fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
+
+    # Check for outliers (residual > 2.0 * sigma) and take them out
+    #------------------------------------------------------------------------------------
+    indicesToDrop <- which (fitSugarAll$residuals > 2.0 * sigma (fitSugarAll))
+    if (length (indicesToDrop) > 0) {
+      concentrations  <- concentrations  [-indicesToDrop]
+      referenceValues <- referenceValues [-indicesToDrop]
     }
 
-    # Get the slope and intercept
-    #----------------------------------------------------------------------------------
-    if (forceIntercept) { # Get slope for intercepts forced through zero
-      # sugar <- slope * absorbance + intercept
-      fitSugar  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance490']])
-    } else { # Get intercept and slope
-      fitSugar  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance490']])
-    }
+    # Get the slope and intercept (startch = slope * absorbance + intercept)
+    #------------------------------------------------------------------------------------
+    fitSugar <- lm (concentrations ~ 0 + referenceValues)
 
     # Add the slopes and intercepts to respective rows in the tibble
     #----------------------------------------------------------------------------------
-    if (forceIntercept) { # intercept forced through 0.0
-      rawData [['InterceptSugar']]  [batchCondition] <- 0.0
-      rawData [['SlopeSugar']]      [batchCondition] <- fitSugar$coefficients
-    } else { # variable intercept
-      rawData [['InterceptSugar']]  [batchCondition] <- fitSugar$coefficients [1]
-      rawData [['SlopeSugar']]      [batchCondition] <- fitSugar$coefficients [2]
-    }
+    rawData [['InterceptSugar']]  [batchCondition] <- 0.0
+    rawData [['SlopeSugar']]      [batchCondition] <- fitSugar$coefficients
   } # End of extraction loop
 
   # Make and save a starch calibration curve for each combination of batch and date
@@ -222,30 +193,10 @@ processNSCs <- function (rawData,
     analysisDate <- extractionsStarch [['date']]  [extraction]
     batch        <- extractionsStarch [['batch']] [extraction]
 
-    # Get absorbances for reference values to create a calibration curve for each batch
-    #----------------------------------------------------------------------------------
-    refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
-                    rawData [['BatchID']]                 == batch        &
-                    rawData [['DateOfStarchAnalysis']]    == analysisDate &
-                    !is.na (rawData [['SampleID']])
-    batchCondition <- rawData [['BatchID']]              == batch &
-                      rawData [['DateOfStarchAnalysis']] == analysisDate
-    referenceValues <- rawData [refCondition, ]
-
-    # Get reference solution concentrations
-    #----------------------------------------------------------------------------------
-    concentrations <- substr (rawData [['SampleID']] [refCondition],
-                              4,
-                              nchar (rawData [['SampleID']] [refCondition]))
-
-    # Set reference solution concentrations to 200 for starch
-    #----------------------------------------------------------------------------------
-    concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
-    concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch # TR Waiting to hear from Jim to confirm this.
-    concentrations <- as.numeric (concentrations)
-
     # Get the batch's mean absorbance at 525nm for tube blanks
     #--------------------------------------------------------------------------------
+    batchCondition <- rawData [['BatchID']]              == batch &
+                      rawData [['DateOfStarchAnalysis']] == analysisDate
     if (sum (rawData [['SampleID']] == 'TB' & batchCondition, na.rm = T) > 0.0) {
       batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB' &
                                                                   batchCondition],
@@ -259,7 +210,10 @@ processNSCs <- function (rawData,
     # the smallest mean absorbance to avoid negetive numbers due to the correction.
     #--------------------------------------------------------------------------------
     batchCorrection <- min (batchTBAbsorbance,
-                            rawData [['MeanAbsorbance525']] [batchCondition])
+                            rawData [['MeanAbsorbance525']] [batchCondition &
+                                                             substring (data [['SampleID']], 1, 3) != 'REF' &
+                                                             substring (data [['SampleID']], 1, 2) != 'TB' &
+                                                             substring (data [['SampleID']], 1, 1) != 'B'])
 
     # Flag for higher TB than MeanAbsorbance525
     #--------------------------------------------------------------------------------
@@ -285,75 +239,50 @@ processNSCs <- function (rawData,
     referenceValues [['CorrectedMeanAbsorbance525']] <-
       referenceValues [['MeanAbsorbance525']] - batchCorrection
 
-    # Get the range of absorbance values for the samples
+    # Get absorbances for reference values to create a calibration curve for each batch
     #----------------------------------------------------------------------------------
-    condition <- batchCondition                                   &
-                 substring (rawData [['SampleID']], 1, 3) != 'REF'&
-                 substring (rawData [['SampleID']], 1, 3) != 'LCS'&
-                 substring (rawData [['SampleID']], 1, 1) != 'B'  &
-                 substring (rawData [['SampleID']], 1, 2) != 'TB' &
-                 !is.na (rawData [['CorrectedMeanAbsorbance525']])
-    if (sum (condition, na.rm = TRUE) > 0) {
-      absorbanceRange <- range (rawData [['CorrectedMeanAbsorbance525']] [condition],
-                                na.rm = TRUE)
+    refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
+                    rawData [['BatchID']]                 == batch        &
+                    rawData [['DateOfStarchAnalysis']]    == analysisDate &
+                    !is.na (rawData [['SampleID']])
+    referenceValues <- rawData [['MeanCorrectedAbsorbance525']] [refCondition]
 
-      # Only use refence values that are within an order of magnitude of the sample
-      # absorbances
-      #--------------------------------------------------------------------------------
-      fitRange <- c (absorbanceRange [1] / 10.0, absorbanceRange [2] * 10.0)
-      if (fitRange [1] < epsilon) { # If the lower range is a very small number include REF0
-        indicesToDrop <- which ((referenceValues [['CorrectedMeanAbsorbance525']] < fitRange [1] |
-                                 referenceValues [['CorrectedMeanAbsorbance525']] > fitRange [2]) &
-                                referenceValues [['SampleID']] != 'REF0')
-      } else {
-        indicesToDrop <- which (referenceValues [['CorrectedMeanAbsorbance525']] < fitRange [1] |
-                                referenceValues [['CorrectedMeanAbsorbance525']] > fitRange [2])
-      }
-      if (length (indicesToDrop) > 0) {
-        referenceValues <- referenceValues [-indicesToDrop, ]
-        concentrations  <- concentrations  [-indicesToDrop]
-      }
-    } else {
-      warning (paste ('Warning: There are no starch samples in batch ',batch,
-                      ' analysed on the ',analysisDate,'.', sep = ''))
-    }
+    # Get reference solution concentrations
+    #----------------------------------------------------------------------------------
+    concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
+                              nchar (rawData [['SampleID']] [refCondition]))
+
+    # Set reference solution concentrations to 200 for starch
+    #----------------------------------------------------------------------------------
+    concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
+    concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch # TR Waiting to hear from Jim to confirm this.
+    concentrations <- as.numeric (concentrations)
+
+    # Sort out reference values with an absorbance above 1.0
+    #----------------------------------------------------------------------------------
+    indicesToKeep <- which (referenceValues >= -0.1 &
+                            referenceValues <= 1.1)
+
     # Get the slope and intercept (startch = slope * absorbance + intercept)
-    #----------------------------------------------------------------------------------
-    if (forceIntercept) { # Get slope for intercepts forced through zero
-      fitStarch  <- lm (concentrations ~ 0 + referenceValues [['CorrectedMeanAbsorbance525']])
-    } else { # Get intercept and slope
-      fitStarch  <- lm (concentrations ~ referenceValues [['CorrectedMeanAbsorbance525']])
+    #------------------------------------------------------------------------------------
+    fitStarchAll <- lm (concentrations ~ 0 + referenceValues)
+
+    # Check for outlier (residual > 2.0 * sigma) and take them out
+    #------------------------------------------------------------------------------------
+    indicesToDrop <- which (fitStarchAll$residuals > 2.0 * sigma (fitStarchAll))
+    if (length (indicesToDrop) > 0) {
+      concentrations  <- concentrations  [-indicesToDrop]
+      referenceValues <- referenceValues [-indicesToDrop]
     }
 
-    # Drop REF250 from calibration curve if R2 is below 0.9
-    #----------------------------------------------------------------------------------
-    if (summary (fitStarch)$r.squared < 0.9) {
-      indexToDrop <- which (concentrations == 250.0)
-      concentrations <- concentrations [-indexToDrop]
-      referenceValues <- referenceValues [['CorrectedMeanAbsorbance525']] [-indexToDrop]
-      if (forceIntercept) { # Get slope for intercepts forced through zero
-        fitStarch  <- lm (concentrations ~ 0 + referenceValues)
-      } else { # Get intercept and slope
-        fitStarch  <- lm (concentrations ~ referenceValues)
-      }
-    }
-
-    # check whether calibration curve is sufficiently precise
-    #----------------------------------------------------------------------------------
-    if (summary (fitStarch)$r.squared < 0.9) {
-      warning (paste ('Warning: the calibration curve for batch ',batch,' on the ',
-                      analysisDate,' has an R2 lower than 0.9.', sep = ''))
-    }
+    # Get the slope and intercept (startch = slope * absorbance + intercept)
+    #------------------------------------------------------------------------------------
+    fitStarch <- lm (concentrations ~ 0 + referenceValues)
 
     # Add the slopes and intercepts to respective rows in the tibble
     #----------------------------------------------------------------------------------
-    if (forceIntercept) { # intercept forced through 0.0
-      rawData [['InterceptStarch']] [batchCondition] <- 0.0
-      rawData [['SlopeStarch']]     [batchCondition] <- fitStarch$coefficients
-    } else { # variable intercept
-      rawData [['InterceptStarch']] [batchCondition] <- fitStarch$coefficients [1]
-      rawData [['SlopeStarch']]     [batchCondition] <- fitStarch$coefficients [2]
-    }
+    rawData [['InterceptStarch']] [batchCondition] <- 0.0
+    rawData [['SlopeStarch']]     [batchCondition] <- fitStarch$coefficients
 
   } # End of starch extractions loop
 
@@ -476,8 +405,10 @@ processNSCs <- function (rawData,
 
         # Flag for high or low oak lab standard
         #--------------------------------------------------------------------------------
-        rawData [['LCSOakDeviation']] <- NA
+        rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- NA
+
       } else { # Check the LCS Oak is low or high
+
         # get LCS Oak standard and compare it against threshold
         #--------------------------------------------------------------------------------
         LCSOakSugar  <- rawData [['ConcentrationSugarPerDW']]  [refCondition]
@@ -485,13 +416,13 @@ processNSCs <- function (rawData,
 
         # Flag for high or low oak lab standard
         #--------------------------------------------------------------------------------
-        rawData [['LCSOakDeviation']] <- 'N'
+        rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'N'
 
         # oak sugar was 3.59+-0.38 % DW at Harvard and 3.28+-0.51 at NAU thus far
         #--------------------------------------------------------------------------------
         if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
             mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
-          rawData [['LCSOakDeviation']] <- 'sugar'
+          rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'sugar'
         }
         # oak starch was 2.45+-0.21 % DW at Harvard and 2.91+-0.33 at NAU thus far
         #--------------------------------------------------------------------------------
@@ -499,9 +430,9 @@ processNSCs <- function (rawData,
             mean (LCSOakStarch, na.rm = T) > 2.45+0.21) {
           if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
               mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
-            rawData [['LCSOakDeviation']] <- 'sugar & starch'
+            rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'sugar & starch'
           } else {
-            rawData [['LCSOakDeviation']] <- 'starch'
+            rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'starch'
           }
         }
       } # End sum (refCondition) == 0 condition
