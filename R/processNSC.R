@@ -181,7 +181,7 @@ processNSCs <- function (rawData,
     # Add the slopes to the tibble
     #------------------------------------------------------------------------------------
     batchCondition <- rawData [['BatchID']]              == batch &
-                      rawData [['DateOfStarchAnalysis']] == analysisDate
+                      rawData [['DateOfSugarAnalysis']] == analysisDate
     rawData [['SlopeSugar']] [batchCondition] <- fitSugar$coefficients
 
   } # End of extraction loop
@@ -360,8 +360,8 @@ processNSCs <- function (rawData,
 
   # Convert mass to concentrations [mg g-1]
   #--------------------------------------------------------------------------------------
-  rawData [['ConcentrationSugarMgG']]  <- rawData [['MassSugar']] /
-                                          rawData [['MassSample']]
+  rawData [['ConcentrationSugarMgG']] <- rawData [['MassSugar']] /
+                                         rawData [['MassSample']]
   rawData [['ConcentrationSugarMgG']] [rawData [['ConcentrationSugarMgG']] < 0.0   |
                                        is.na (rawData [['ConcentrationSugarMgG']]) |
                                        is.nan (rawData [['ConcentrationSugarMgG']])] <- NA
