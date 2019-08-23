@@ -235,18 +235,13 @@ processNSCs <- function (rawData,
     rawData [['LowAbsorbance525']] [rawData [['MeanAbsorbance525']] < batchTBAbsorbance &
                                     batchCondition] <- 'Y'
 
-    # Correct reference values for tube blank absorbance at 525nm
-    #--------------------------------------------------------------------------------
-    referenceValues [['CorrectedMeanAbsorbance525']] <-
-      referenceValues [['MeanAbsorbance525']] - batchCorrection
-
     # Get absorbances for reference values to create a calibration curve for each batch
     #----------------------------------------------------------------------------------
     refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
                     rawData [['BatchID']]                 == batch        &
                     rawData [['DateOfStarchAnalysis']]    == analysisDate &
                     !is.na (rawData [['SampleID']])
-    referenceValues <- rawData [['MeanCorrectedAbsorbance525']] [refCondition]
+    referenceValues <- rawData [['CorrectedMeanAbsorbance525']] [refCondition]
 
     # Get reference solution concentrations
     #----------------------------------------------------------------------------------
