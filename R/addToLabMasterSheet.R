@@ -32,7 +32,7 @@ addToLabMasterSheet <- function (data, fileDir, fileName, IDs = c ('SampleID')) 
     # Read the master sheet
     #------------------------------------------------------------------------------------
     types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 19), 'text',
-                rep ('numeric', 2), 'text', 'numeric','text', rep ('numeric', 6), 'text',
+                'numeric', 'text', 'numeric','text', rep ('numeric', 5), 'text',
                 rep ('numeric', 6), 'text')
     master <- readxl::read_excel (fullPath, col_types = types)
 
