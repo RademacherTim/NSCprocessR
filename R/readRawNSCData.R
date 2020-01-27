@@ -7,7 +7,7 @@
 #' @return The raw data from the nonstructural carbohydrate assay.
 #' @import readxl
 #' @export
-readRawNSCData <- function (fileDir, fileName, IDs = c ('SampleID')){
+readRawNSCData <- function (fileDir, fileName, worksheet = NULL, IDs = c ('SampleID')){
 
  # Get the filePath to the relevant excel spreadsheet
  #---------------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ readRawNSCData <- function (fileDir, fileName, IDs = c ('SampleID')){
  #---------------------------------------------------------------------------------------
  if (file.exists (filePath)){
    types <- c (rep ('text', (nIDs+1)), rep ('date', 3), rep ('numeric', 11), 'text')
-   temp <- readxl::read_excel (filePath, col_types = types) [, 1:(15 + nIDs)] # Only read the relevant columns
+   temp <- readxl::read_excel (path = filePath, sheet = workSheet, col_types = types) [, 1:(15 + nIDs)] # Only read the relevant columns
  } else {
    stop ("Error: The file your are trying to read does not exist.")
  }
