@@ -7,7 +7,7 @@
 #' @return The raw data from the nonstructural carbohydrate assay.
 #' @import readxl
 #' @export
-readRawNSCData <- function (fileDir, fileName, worksheet = NULL, IDs = c ('SampleID')){
+readRawNSCData <- function (fileDir, fileName, workSheet = NULL, IDs = c ('SampleID')){
 
  # Get the filePath to the relevant excel spreadsheet
  #---------------------------------------------------------------------------------------
