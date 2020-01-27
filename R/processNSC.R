@@ -65,7 +65,8 @@ processNSCs <- function (rawData,
   rawData [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = T)
   rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
                                               min (rawData [['Absorbance490_Blank']],
-                                                   rawData [['MeanAbsorbance490']])
+                                                   rawData [['MeanAbsorbance490']],
+                                                   na.rm = T)
 
   # Calculate the within-sample coefficient of variation
   #--------------------------------------------------------------------------------------
@@ -96,340 +97,362 @@ processNSCs <- function (rawData,
   batches <- unique (rawData [['BatchID']])
   for (batch in batches) {
     dates <- unique (rawData [['DateOfSugarAnalysis']] [rawData [['BatchID']] == batch])
-    if (batch == batches [1]) {
+    if (batch == batches [1] & !is.na (dates)) {
       extractionsSugar <- tibble::tibble (batch = batch, date = dates)
-    } else {
+    } else if (!is.na (dates [1])) {
       extractionsSugar <- tibble::add_row (extractionsSugar, batch = batch, date = dates)
     }
   }
 
   # Delete rows that do not have calibration curves
   #--------------------------------------------------------------------------------------
-  if (sum (is.na (extractionsSugar [['date']])) > 0) {
+  if (exists ('extractionsSugar')) {
+    if (sum (is.na (extractionsSugar [['date']])) > 0) {
     extractionsSugar <- extractionsSugar [-which (is.na (extractionsSugar [['date']])), ]
+    }
   }
 
   # Compile a list of unique batches and dates for starch extractions
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
     dates <- unique (rawData [['DateOfStarchAnalysis']] [rawData [['BatchID']] == batch])
-    if (batch == batches [1]) {
+    if (batch == batches [1] & !is.na (dates)) {
       extractionsStarch <- tibble (batch = batch, date = dates)
-    } else {
+    } else if (!is.na (dates [1])) {
       extractionsStarch <- add_row (extractionsStarch, batch = batch, date = dates)
     }
   }
 
   # Delete rows that do not have calibration curves
   #--------------------------------------------------------------------------------------
-  if (sum (is.na (extractionsStarch [['date']])) > 0) {
+  if (exists ('extractionsStarch')) {
+    if (sum (is.na (extractionsStarch [['date']])) > 0) {
     extractionsStarch <- extractionsStarch [-which (is.na (extractionsStarch [['date']])), ]
+    }
   }
 
   # Make and save a sugar calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  for (extraction in 1:(dim (extractionsSugar) [1])) {
+  if (exists ('extractionsSugar')) {
+    for (extraction in 1:(dim (extractionsSugar) [1])) {
 
-    # Get date of analysis and batch number
-    #------------------------------------------------------------------------------------
-    analysisDate <- extractionsSugar [['date']]  [extraction]
-    batch        <- extractionsSugar [['batch']] [extraction]
+      # Get date of analysis and batch number
+      #----------------------------------------------------------------------------------
+      analysisDate <- extractionsSugar [['date']]  [extraction]
+      batch        <- extractionsSugar [['batch']] [extraction]
 
-    # Get absorbances for reference values to create a calibration curve for each batch
-    #------------------------------------------------------------------------------------
-    refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
-                            rawData [['BatchID']]             == batch &
-                            rawData [['DateOfSugarAnalysis']] == analysisDate
-    referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
+      # Get absorbances for reference values to create a calibration curve for each batch
+      #----------------------------------------------------------------------------------
+      refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
+                              rawData [['BatchID']]             == batch &
+                              rawData [['DateOfSugarAnalysis']] == analysisDate
+      referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
 
-    # Get reference solution concentrations
-    #------------------------------------------------------------------------------------
-    concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
+      # Get reference solution concentrations
+      #----------------------------------------------------------------------------------
+      concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
                               nchar (rawData [['SampleID']] [refCondition]))
 
-    # Set reference solution concentrations to 100 for sugars
-    #------------------------------------------------------------------------------------
-    concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
-    concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar  # TR Waiting to hear from Jim to confirm this.
-    concentrations <- as.numeric (concentrations)
+      # Set reference solution concentrations to 100 for sugars
+      #----------------------------------------------------------------------------------
+      concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
+      concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar
+      concentrations <- as.numeric (concentrations)
 
-    # Sort out reference values with an absorbance above 1.0
-    #------------------------------------------------------------------------------------
-    indicesToKeep <- which (referenceValues >= -0.1 &
-                            referenceValues <=  1.1)
-    referenceValues <- referenceValues [indicesToKeep]
-    concentrations  <- concentrations  [indicesToKeep]
+      # Sort out reference values with an absorbance above 1.0
+      #----------------------------------------------------------------------------------
+      indicesToKeep <- which (referenceValues >= -0.1 &
+                              referenceValues <=  1.1)
+      referenceValues <- referenceValues [indicesToKeep]
+      concentrations  <- concentrations  [indicesToKeep]
 
-    # Get the slope of a linear curve forced through 0 to make sure no values are
-    # estimated to be negative values
-    #------------------------------------------------------------------------------------
-    # sugar <- slope * absorbance
-    fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
+      # Get the slope of a linear curve forced through 0 to make sure no values are
+      # estimated to be negative values
+      #----------------------------------------------------------------------------------
+      # sugar <- slope * absorbance
+      fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
 
-    # Check for outliers (residual > 2.0 * sigma) and take them out
-    #------------------------------------------------------------------------------------
-    indicesToDrop <- which (fitSugarAll$residuals > 2.0 * sigma (fitSugarAll))
-    if (length (indicesToDrop) > 0) {
-      concentrations  <- concentrations  [-indicesToDrop]
-      referenceValues <- referenceValues [-indicesToDrop]
-    }
+      # Check for outliers (residual > 2.0 * sigma) and take them out
+      #----------------------------------------------------------------------------------
+      indicesToDrop <- which (fitSugarAll$residuals > 2.0 * sigma (fitSugarAll))
+      if (length (indicesToDrop) > 0) {
+        concentrations  <- concentrations  [-indicesToDrop]
+        referenceValues <- referenceValues [-indicesToDrop]
+      }
 
-    # Get the slope (startch = slope * absorbance)
-    #------------------------------------------------------------------------------------
-    fitSugar <- lm (concentrations ~ 0 + referenceValues)
+      # Get the slope (startch = slope * absorbance)
+      #----------------------------------------------------------------------------------
+      fitSugar <- lm (concentrations ~ 0 + referenceValues)
 
-    # Add the slopes to the tibble
-    #------------------------------------------------------------------------------------
-    batchCondition <- rawData [['BatchID']]              == batch &
-                      rawData [['DateOfSugarAnalysis']] == analysisDate
-    rawData [['SlopeSugar']] [batchCondition] <- fitSugar$coefficients
+      # Add the slopes to the tibble
+      #----------------------------------------------------------------------------------
+      batchCondition <- rawData [['BatchID']]              == batch &
+                        rawData [['DateOfSugarAnalysis']] == analysisDate
+      rawData [['SlopeSugar']] [batchCondition] <- fitSugar$coefficients
 
-  } # End of extraction loop
+    } # End of extraction loop
+  } # End exists ('exteractionsSugar')
 
   # Make and save a starch calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  for (extraction in 1:(dim (extractionsStarch) [1])) {
-
-    # Get date of analysis and batch number
-    #--------------------------------------------------------------------------------------
-    analysisDate <- extractionsStarch [['date']]  [extraction]
-    batch        <- extractionsStarch [['batch']] [extraction]
-
-    # Get the batch's mean absorbance at 525nm for tube blanks
-    #--------------------------------------------------------------------------------
-    batchCondition <- rawData [['BatchID']]              == batch &
-                      rawData [['DateOfStarchAnalysis']] == analysisDate
-    if (sum (rawData [['SampleID']] == 'TB' & batchCondition, na.rm = T) > 0.0) {
-      batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB' &
-                                                                  batchCondition],
-                                 na.rm = T)
-    } else { # In case there are no tube blanks we just assume no interference form tubes
-      batchTBAbsorbance <- 0.0
-    }
-
-    # Determine correction factor from TB, unless they are larger than the sample
-    # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
-    # the smallest mean absorbance to avoid negetive numbers due to the correction.
-    #--------------------------------------------------------------------------------
-    condition <- batchCondition & substring (rawData [['SampleID']], 1, 3) != 'REF' &
-                                  substring (rawData [['SampleID']], 1, 2) != 'TB' &
-                                  substring (rawData [['SampleID']], 1, 1) != 'B'
-    batchCorrection <- min (batchTBAbsorbance, rawData [['MeanAbsorbance525']] [condition])
-
-    # Flag for higher TB than MeanAbsorbance525
-    #--------------------------------------------------------------------------------
-    if (batchCorrection != batchTBAbsorbance) {
-      rawData [['TBHigh']] [batchCondition] <- 'Y'
-    } else {
-      rawData [['TBHigh']] [batchCondition] <- 'N'
-    }
-
-    # Correct mean absorbance values at 525nm
-    #--------------------------------------------------------------------------------
-    rawData [['CorrectedMeanAbsorbance525']] [batchCondition] <-
-      rawData [['MeanAbsorbance525']] [batchCondition] - batchCorrection
-
-    # Set flag for low absorbance in samples
-    #--------------------------------------------------------------------------------
-    rawData [['LowAbsorbance525']] [batchCondition] <- 'N'
-    rawData [['LowAbsorbance525']] [rawData [['MeanAbsorbance525']] < batchTBAbsorbance &
-                                    batchCondition] <- 'Y'
-
-    # Get absorbances for reference values to create a calibration curve for each batch
-    #----------------------------------------------------------------------------------
-    refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
-                    rawData [['BatchID']]                 == batch        &
-                    rawData [['DateOfStarchAnalysis']]    == analysisDate &
-                    !is.na (rawData [['SampleID']])
-    referenceValues <- rawData [['CorrectedMeanAbsorbance525']] [refCondition]
-
-    # Get reference solution concentrations
-    #----------------------------------------------------------------------------------
-    concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
-                              nchar (rawData [['SampleID']] [refCondition]))
-
-    # Set reference solution concentrations to 200 for starch
-    #----------------------------------------------------------------------------------
-    concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
-    concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch # TR Waiting to hear from Jim to confirm this.
-    concentrations <- as.numeric (concentrations)
-
-    # Sort out reference values with an absorbance above 1.0
-    #----------------------------------------------------------------------------------
-    indicesToKeep <- which (referenceValues >= -0.1 &
-                            referenceValues <= 1.1)
-
-    # Get the slope (startch = slope * absorbance)
-    #------------------------------------------------------------------------------------
-    fitStarchAll <- lm (concentrations ~ 0 + referenceValues)
-
-    # Check for outlier (residual > 2.0 * sigma) and take them out
-    #------------------------------------------------------------------------------------
-    indicesToDrop <- which (fitStarchAll$residuals > 2.0 * sigma (fitStarchAll))
-    if (length (indicesToDrop) > 0) {
-      concentrations  <- concentrations  [-indicesToDrop]
-      referenceValues <- referenceValues [-indicesToDrop]
-    }
-
-    # Get the slope (startch = slope * absorbance)
-    #------------------------------------------------------------------------------------
-    fitStarch <- lm (concentrations ~ 0 + referenceValues)
-
-    # Add the slopes to the tibble
-    #----------------------------------------------------------------------------------
-    rawData [['SlopeStarch']] [batchCondition] <- fitStarch$coefficients
-
-  } # End of starch extractions loop
-
-  # Determine concentrations from absorbance values for sugar # Call it a concentrations [mg ml-1]
-  #--------------------------------------------------------------------------------------
-  rawData [['ConcentrationSugar']] <- rawData [['CorrectedMeanAbsorbance490']] *
-                                      rawData [['SlopeSugar']]
-  rawData [['ConcentrationSugar']] [rawData [['ConcentrationSugar']] < 0.0   |
-                                    is.na  (rawData [['ConcentrationSugar']])|
-                                    is.nan (rawData [['ConcentrationSugar']])] <- NA
-
-  # Correct sugar amount [mg ml-1] for background signal using no phenol
-  #--------------------------------------------------------------------------------------
-  rawData [['MassSugar']] <- rawData [['ConcentrationSugar']] *
-                             rawData [['DilutionFactorSugar']] *
-                             rawData [['VolumeSugar']]
-
-  # Determine concentration of strach [mg ml-1] from absorbance
-  #--------------------------------------------------------------------------------------
-  rawData [['ConcentrationStarch']] <- rawData [['CorrectedMeanAbsorbance525']] *
-                                       rawData [['SlopeStarch']]
-  rawData [['ConcentrationStarch']] [rawData [['ConcentrationStarch']] < 0.0   |
-                                      is.na  (rawData [['ConcentrationStarch']])|
-                                      is.nan (rawData [['ConcentrationStarch']])] <- NA
-  rawData [['MassStarch']] <- rawData [['ConcentrationStarch']] *
-                              rawData [['DilutionFactorStarch']] *
-                              rawData [['VolumeStarch']]
-
-  # Calculate starch recovery for each combination of batch and date
-  #--------------------------------------------------------------------------------------
-  for (extraction in 1:(dim (extractionsStarch) [1])) {
-
-    # Get date of analysis and batch number
-    #--------------------------------------------------------------------------------------
-    analysisDate <- extractionsStarch [['date']]  [extraction]
-    batch        <- extractionsStarch [['batch']] [extraction]
-
-    # Get absorbances for potato starch for each combination of batch and analysisDate
-    #----------------------------------------------------------------------------------
-    refCondition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
-                    rawData [['BatchID']]                  == batch        &
-                    rawData [['DateOfStarchAnalysis']]     == analysisDate &
-                    !is.na (rawData [['SampleID']])
-    batchCondition <- rawData [['BatchID']]              == batch        &
-                      rawData [['DateOfStarchAnalysis']] == analysisDate
-
-    # Set flag for unrealistically high starch recovery fraction
-    #----------------------------------------------------------------------------------
-    rawData [['SRFHigh']] [batchCondition] <- 'N'
-
-    # Check whether potato standard was run at all, otherwise use maxStarchRecoveryFraction
-    #----------------------------------------------------------------------------------
-    if (sum (refCondition, na.rm = T) == 0) {
-      rawData [['MeanStarchRecovery']] [batchCondition] <- maxStarchRecoveryFraction
-    } else {
-      LCSPotato <- rawData [refCondition, ]
-      meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
-      if (meanPotatoMassRecovered >
-          mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0) { # Maybe I should just drop to one high value?
-        meanPotatoMass <- mean (LCSPotato [['MassSample']])
-        rawData [['SRFHigh']] [batchCondition] <- 'Y'
-      } else {
-        meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction
-      }
-      meanPotatoMass <- meanPotatoMass * 1000.0 # Convert from g to mg
-      meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
-      if (meanRecoveryPer > 100.0) rawData [['SRFHigh']] [batchCondition] <- 'Y'
-      meanRecoveryPer <- min (meanRecoveryPer, 100.0) # Hack to avoid recovery rate above 100%.
-
-      # Set batch's mean starch recovery rate
-      #----------------------------------------------------------------------------------
-      rawData [['MeanStarchRecovery']] [batchCondition] <- meanRecoveryPer
-    }
-  }
-
-  # Correct all samples for the mean starch recovery percentage of each batch
-  #------------------------------------------------------------------------------------
-  rawData [['CorrectedMassStarch']] <- rawData [['MassStarch']] /
-                                      (rawData [['MeanStarchRecovery']] / 100.0)
-
-  # Convert mass to concentrations [mg g-1]
-  #--------------------------------------------------------------------------------------
-  rawData [['ConcentrationSugarMgG']] <- rawData [['MassSugar']] /
-                                         rawData [['MassSample']]
-  rawData [['ConcentrationSugarMgG']] [rawData [['ConcentrationSugarMgG']] < 0.0   |
-                                       is.na (rawData [['ConcentrationSugarMgG']]) |
-                                       is.nan (rawData [['ConcentrationSugarMgG']])] <- NA
-  rawData [['ConcentrationStarchMgG']] <- rawData [['CorrectedMassStarch']] /
-                                          rawData [['MassSample']]
-
-  # Convert concentrations from [mg g-1] to [% dry weight]
-  #--------------------------------------------------------------------------------------
-  rawData [['ConcentrationSugarPerDW']]  <- rawData [['ConcentrationSugarMgG']]  / 10.0
-  rawData [['ConcentrationStarchPerDW']] <- rawData [['ConcentrationStarchMgG']] / 10.0
-
-  # Check whether Lab Control Standard for Oak wood is high
-  #----------------------------------------------------------------------------------
-  if (LCS == 'Oak') {
-    for (extraction in 1:(dim (extractionsSugar) [1])) {
+  if (exists ('extractionsStarch')) {
+    for (extraction in 1:(dim (extractionsStarch) [1])) {
 
       # Get date of analysis and batch number
       #--------------------------------------------------------------------------------------
       analysisDate <- extractionsStarch [['date']]  [extraction]
       batch        <- extractionsStarch [['batch']] [extraction]
 
-      # Get absorbances for potato starch for each combination of batch and analysisDate
+      # Get the batch's mean absorbance at 525nm for tube blanks
+      #--------------------------------------------------------------------------------
+      batchCondition <- rawData [['BatchID']]              == batch &
+                        rawData [['DateOfStarchAnalysis']] == analysisDate
+      if (sum (rawData [['SampleID']] == 'TB' & batchCondition, na.rm = T) > 0.0) {
+        batchTBAbsorbance <- mean (rawData [['MeanAbsorbance525']] [rawData [['SampleID']] == 'TB' &
+                                                                    batchCondition],
+                                   na.rm = T)
+      } else { # In case there are no tube blanks we just assume no interference form tubes
+        batchTBAbsorbance <- 0.0
+      }
+
+      # Determine correction factor from TB, unless they are larger than the sample
+      # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
+      # the smallest mean absorbance to avoid negetive numbers due to the correction.
+      #--------------------------------------------------------------------------------
+      condition <- batchCondition & substring (rawData [['SampleID']], 1, 3) != 'REF' &
+                                    substring (rawData [['SampleID']], 1, 2) != 'TB' &
+                                    substring (rawData [['SampleID']], 1, 1) != 'B'
+      batchCorrection <- min (batchTBAbsorbance,
+                              rawData [['MeanAbsorbance525']] [condition],
+                              na.rm = T)
+
+      # Flag for higher TB than MeanAbsorbance525
+      #--------------------------------------------------------------------------------
+      if (batchCorrection != batchTBAbsorbance) {
+        rawData [['TBHigh']] [batchCondition] <- 'Y'
+      } else {
+        rawData [['TBHigh']] [batchCondition] <- 'N'
+      }
+
+      # Correct mean absorbance values at 525nm
+      #--------------------------------------------------------------------------------
+      rawData [['CorrectedMeanAbsorbance525']] [batchCondition] <-
+        rawData [['MeanAbsorbance525']] [batchCondition] - batchCorrection
+
+      # Set flag for low absorbance in samples
+      #--------------------------------------------------------------------------------
+      rawData [['LowAbsorbance525']] [batchCondition] <- 'N'
+      rawData [['LowAbsorbance525']] [rawData [['MeanAbsorbance525']] < batchTBAbsorbance &
+                                      batchCondition] <- 'Y'
+
+      # Get absorbances for reference values to create a calibration curve for each batch
       #----------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 7) == 'LCS Oak'    &
+      refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
                       rawData [['BatchID']]                 == batch        &
                       rawData [['DateOfStarchAnalysis']]    == analysisDate &
                       !is.na (rawData [['SampleID']])
+      referenceValues <- rawData [['CorrectedMeanAbsorbance525']] [refCondition]
 
-      # check whether thebatch has a LCS Oak
+      # Get reference solution concentrations
       #----------------------------------------------------------------------------------
-      if (sum (refCondition) == 0) {
-        warning (paste ('Warning: There is no LCS Oak for batch ',batch,
-                        ' analysed on the ',analysisDate,'.', sep = ''))
+      concentrations <- substr (rawData [['SampleID']] [refCondition], 4,
+                                nchar (rawData [['SampleID']] [refCondition]))
 
-        # Flag for high or low oak lab standard
-        #--------------------------------------------------------------------------------
-        rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- NA
+      # Set reference solution concentrations to 200 for starch
+      #----------------------------------------------------------------------------------
+      concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
+      concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch # TR Waiting to hear from Jim to confirm this.
+      concentrations <- as.numeric (concentrations)
 
-      } else { # Check the LCS Oak is low or high
+      # Sort out reference values with an absorbance above 1.0
+      #----------------------------------------------------------------------------------
+      indicesToKeep <- which (referenceValues >= -0.1 &
+                              referenceValues <= 1.1)
 
-        # get LCS Oak standard and compare it against threshold
-        #--------------------------------------------------------------------------------
-        LCSOakSugar  <- rawData [['ConcentrationSugarPerDW']]  [refCondition]
-        LCSOakStarch <- rawData [['ConcentrationStarchPerDW']] [refCondition]
+      # Get the slope (startch = slope * absorbance)
+      #------------------------------------------------------------------------------------
+      fitStarchAll <- lm (concentrations ~ 0 + referenceValues)
 
-        # Flag for high or low oak lab standard
-        #--------------------------------------------------------------------------------
-        rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'N'
+      # Check for outlier (residual > 2.0 * sigma) and take them out
+      #------------------------------------------------------------------------------------
+      indicesToDrop <- which (fitStarchAll$residuals > 2.0 * sigma (fitStarchAll))
+      if (length (indicesToDrop) > 0) {
+        concentrations  <- concentrations  [-indicesToDrop]
+        referenceValues <- referenceValues [-indicesToDrop]
+      }
 
-        # oak sugar was 3.59+-0.38 % DW at Harvard and 3.28+-0.51 at NAU thus far
-        #--------------------------------------------------------------------------------
-        if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
-            mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
-          rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'sugar'
+      # Get the slope (startch = slope * absorbance)
+      #------------------------------------------------------------------------------------
+      fitStarch <- lm (concentrations ~ 0 + referenceValues)
+
+      # Add the slopes to the tibble
+      #----------------------------------------------------------------------------------
+      rawData [['SlopeStarch']] [batchCondition] <- fitStarch$coefficients
+
+    } # End of starch extractions loop
+  }
+
+  # Determine concentrations from absorbance values for sugar # Call it a concentrations [mg ml-1]
+  #--------------------------------------------------------------------------------------
+  if (exists ('extractionsSugar')) {
+    rawData [['ConcentrationSugar']] <- rawData [['CorrectedMeanAbsorbance490']] *
+                                        rawData [['SlopeSugar']]
+    rawData [['ConcentrationSugar']] [rawData [['ConcentrationSugar']] < 0.0   |
+                                      is.na  (rawData [['ConcentrationSugar']])|
+                                      is.nan (rawData [['ConcentrationSugar']])] <- NA
+
+    # Correct sugar amount [mg ml-1] for background signal using no phenol
+    #------------------------------------------------------------------------------------
+    rawData [['MassSugar']] <- rawData [['ConcentrationSugar']] *
+                               rawData [['DilutionFactorSugar']] *
+                               rawData [['VolumeSugar']]
+
+    # Convert mass to concentrations [mg g-1]
+    #------------------------------------------------------------------------------------
+    rawData [['ConcentrationSugarMgG']] <- rawData [['MassSugar']] /
+      rawData [['MassSample']]
+    rawData [['ConcentrationSugarMgG']] [rawData [['ConcentrationSugarMgG']] < 0.0   |
+                                           is.na (rawData [['ConcentrationSugarMgG']]) |
+                                           is.nan (rawData [['ConcentrationSugarMgG']])] <- NA
+
+    # Convert concentrations from [mg g-1] to [% dry weight]
+    #--------------------------------------------------------------------------------------
+    rawData [['ConcentrationSugarPerDW']]  <- rawData [['ConcentrationSugarMgG']]  / 10.0
+  }
+
+  # Determine concentration of strach [mg ml-1] from absorbance
+  #--------------------------------------------------------------------------------------
+  if (exists ('extractionsStarch')) {
+    rawData [['ConcentrationStarch']] <- rawData [['CorrectedMeanAbsorbance525']] *
+                                         rawData [['SlopeStarch']]
+    rawData [['ConcentrationStarch']] [rawData [['ConcentrationStarch']] < 0.0   |
+                                       is.na  (rawData [['ConcentrationStarch']])|
+                                       is.nan (rawData [['ConcentrationStarch']])] <- NA
+    rawData [['MassStarch']] <- rawData [['ConcentrationStarch']] *
+                                rawData [['DilutionFactorStarch']] *
+                                rawData [['VolumeStarch']]
+
+    # Calculate starch recovery for each combination of batch and date
+    #------------------------------------------------------------------------------------
+    for (extraction in 1:(dim (extractionsStarch) [1])) {
+
+      # Get date of analysis and batch number
+      #------------------------------------------------------------------------------------
+      analysisDate <- extractionsStarch [['date']]  [extraction]
+      batch        <- extractionsStarch [['batch']] [extraction]
+
+      # Get absorbances for potato starch for each combination of batch and analysisDate
+      #--------------------------------------------------------------------------------
+      refCondition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
+                      rawData [['BatchID']]                  == batch        &
+                      rawData [['DateOfStarchAnalysis']]     == analysisDate &
+                      !is.na (rawData [['SampleID']])
+      batchCondition <- rawData [['BatchID']]              == batch        &
+                        rawData [['DateOfStarchAnalysis']] == analysisDate
+
+      # Set flag for unrealistically high starch recovery fraction
+      #--------------------------------------------------------------------------------
+      rawData [['SRFHigh']] [batchCondition] <- 'N'
+
+      # Check whether potato standard was run at all, otherwise use maxStarchRecoveryFraction
+      #--------------------------------------------------------------------------------
+      if (sum (refCondition, na.rm = T) == 0) {
+        rawData [['MeanStarchRecovery']] [batchCondition] <- maxStarchRecoveryFraction
+      } else {
+        LCSPotato <- rawData [refCondition, ]
+        meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
+        if (meanPotatoMassRecovered >
+            mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0) { # Maybe I should just drop to one high value?
+          meanPotatoMass <- mean (LCSPotato [['MassSample']])
+          rawData [['SRFHigh']] [batchCondition] <- 'Y'
+        } else {
+          meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction
         }
-        # oak starch was 2.45+-0.21 % DW at Harvard and 2.91+-0.33 at NAU thus far
+        meanPotatoMass <- meanPotatoMass * 1000.0 # Convert from g to mg
+        meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
+        if (meanRecoveryPer > 100.0) rawData [['SRFHigh']] [batchCondition] <- 'Y'
+        meanRecoveryPer <- min (meanRecoveryPer, 100.0) # Hack to avoid recovery rate above 100%.
+
+        # Set batch's mean starch recovery rate
         #--------------------------------------------------------------------------------
-        if (mean  (LCSOakStarch, na.rm = T) < 2.45-0.21 &
-            mean (LCSOakStarch, na.rm = T) > 2.45+0.21) {
+        rawData [['MeanStarchRecovery']] [batchCondition] <- meanRecoveryPer
+      }
+    }
+
+    # Correct all samples for the mean starch recovery percentage of each batch
+    #----------------------------------------------------------------------------------
+    rawData [['CorrectedMassStarch']] <- rawData [['MassStarch']] /
+                                        (rawData [['MeanStarchRecovery']] / 100.0)
+
+    # Convert mass to concentrations [mg g-1]
+    #------------------------------------------------------------------------------------
+    rawData [['ConcentrationStarchMgG']] <- rawData [['CorrectedMassStarch']] /
+                                            rawData [['MassSample']]
+
+    # Convert concentrations from [mg g-1] to [% dry weight]
+    #------------------------------------------------------------------------------------
+    rawData [['ConcentrationStarchPerDW']] <- rawData [['ConcentrationStarchMgG']] / 10.0
+  }
+
+  # Check whether Lab Control Standard for Oak wood is high
+  #----------------------------------------------------------------------------------
+  if (LCS == 'Oak') {
+    if (exists ('extractionsSugar') & exists ('extractionsStarch')) {
+      for (extraction in 1:(dim (extractionsSugar) [1])) {
+
+        # Get date of analysis and batch number
+        #------------------------------------------------------------------------------------
+        analysisDate <- extractionsStarch [['date']]  [extraction]
+        batch        <- extractionsStarch [['batch']] [extraction]
+
+        # Get absorbances for potato starch for each combination of batch and analysisDate
+        #--------------------------------------------------------------------------------
+        refCondition <- substr (rawData [['SampleID']], 1, 7) == 'LCS Oak'    &
+                        rawData [['BatchID']]                 == batch        &
+                        rawData [['DateOfStarchAnalysis']]    == analysisDate &
+                        !is.na (rawData [['SampleID']])
+
+        # check whether the batch has a LCS Oak
+        #--------------------------------------------------------------------------------
+        if (sum (refCondition) == 0) {
+          warning (paste ('Warning: There is no LCS Oak for batch ',batch,
+                          ' analysed on the ',analysisDate,'.', sep = ''))
+
+          # Flag for high or low oak lab standard
+          #------------------------------------------------------------------------------
+          rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- NA
+
+        } else { # Check the LCS Oak is low or high
+
+          # get LCS Oak standard and compare it against threshold
+          #--------------------------------------------------------------------------------
+          LCSOakSugar  <- rawData [['ConcentrationSugarPerDW']]  [refCondition]
+          LCSOakStarch <- rawData [['ConcentrationStarchPerDW']] [refCondition]
+
+          # Flag for high or low oak lab standard
+          #--------------------------------------------------------------------------------
+          rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'N'
+
+          # oak sugar was 3.59+-0.38 % DW at Harvard and 3.28+-0.51 at NAU thus far
+          #--------------------------------------------------------------------------------
           if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
               mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
-            rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'sugar & starch'
-          } else {
-            rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'starch'
+            rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'sugar'
           }
-        }
-      } # End sum (refCondition) == 0 condition
-    } # End extraction loop
+          # oak starch was 2.45+-0.21 % DW at Harvard and 2.91+-0.33 at NAU thus far
+          #--------------------------------------------------------------------------------
+          if (mean  (LCSOakStarch, na.rm = T) < 2.45-0.21 &
+              mean (LCSOakStarch, na.rm = T) > 2.45+0.21) {
+            if (mean (LCSOakSugar, na.rm = T) < 3.59-0.38 &
+                mean (LCSOakSugar, na.rm = T) > 3.59+0.38) {
+              rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'sugar & starch'
+            } else {
+              rawData [['LCSOakDeviation']] [rawData [['BatchID']] == batch] <- 'starch'
+            }
+          }
+        } # End sum (refCondition) == 0 condition
+      } # End extraction loop
+    } # End exists ('extractionsSugar') & exists ('extractionsStarch')
   } # End LCS == Oak condition
 
   # Declare data as processed
