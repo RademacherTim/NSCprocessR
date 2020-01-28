@@ -97,7 +97,7 @@ processNSCs <- function (rawData,
   batches <- unique (rawData [['BatchID']])
   for (batch in batches) {
     dates <- unique (rawData [['DateOfSugarAnalysis']] [rawData [['BatchID']] == batch])
-    if (batch == batches [1] & !is.na (dates)) {
+    if (batch == batches [1] & !is.na (dates [1])) {
       extractionsSugar <- tibble::tibble (batch = batch, date = dates)
     } else if (!is.na (dates [1])) {
       extractionsSugar <- tibble::add_row (extractionsSugar, batch = batch, date = dates)
@@ -116,7 +116,7 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
     dates <- unique (rawData [['DateOfStarchAnalysis']] [rawData [['BatchID']] == batch])
-    if (batch == batches [1] & !is.na (dates)) {
+    if (batch == batches [1] & !is.na (dates [1])) {
       extractionsStarch <- tibble (batch = batch, date = dates)
     } else if (!is.na (dates [1])) {
       extractionsStarch <- add_row (extractionsStarch, batch = batch, date = dates)
