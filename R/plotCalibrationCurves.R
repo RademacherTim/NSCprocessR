@@ -25,7 +25,7 @@ plotCalibrationCurves <- function (data) {
     extractionsSugar <- extractionsSugar [-which (is.na (extractionsSugar [['date']])), ]
   }
 
-  # Compile a list of unique batches and dates for sugar extractions
+  # Compile a list of unique batches and dates for starch extractions
   #--------------------------------------------------------------------------------------
   for (batch in batches) {
     dates <- unique (data [['DateOfStarchAnalysis']] [data [['BatchID']] == batch])
@@ -91,7 +91,7 @@ plotCalibrationCurves <- function (data) {
     # sugar <- slope * absorbance + intercept
     fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
 
-   # Check for outliers (residual > 2.0 * sigma) and take them out
+    # Check for outliers (residual > 2.0 * sigma) and take them out
     #------------------------------------------------------------------------------------
     allReferenceValues <- referenceValues
     allConcentrations  <- concentrations
@@ -116,8 +116,8 @@ plotCalibrationCurves <- function (data) {
 
     # Plot the sugar calibration curve
     #----------------------------------------------------------------------------------
-    plot (x = referenceValues,
-          y = concentrations,
+    plot (x = allReferenceValues,
+          y = allConcentrations,
           main = paste ('calibration curve for sugar (batch ',batch,'; ',analysisDate,')', sep = ''),
           las = 1,
           xlab = 'absorbance at 490 nm',
@@ -196,7 +196,7 @@ plotCalibrationCurves <- function (data) {
     # Set reference solution concentrations to 200 for starch
     #------------------------------------------------------------------------------------
     concentrations [concentrations == '100/200'] <- 200.0 # 200 for starch
-    concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch # TR Waiting to hear from Jim to confirm this.
+    concentrations [concentrations == '100/100'] <- 100.0 # 100 for starch
     concentrations <- as.numeric (concentrations)
 
     # Sort out reference values with an absorbance above 1.0
