@@ -321,7 +321,7 @@ processNSCs <- function (rawData,
     rawData [['ConcentrationSugarPerDW']]  <- rawData [['ConcentrationSugarMgG']]  / 10.0
   }
 
-  # Determine concentration of strach [mg ml-1] from absorbance
+  # Determine concentration of starch [mg ml-1] from absorbance
   #--------------------------------------------------------------------------------------
   if (exists ('extractionsStarch')) {
     rawData [['ConcentrationStarch']] <- rawData [['CorrectedMeanAbsorbance525']] *
@@ -383,7 +383,7 @@ processNSCs <- function (rawData,
     } else {
       # Set batch's mean starch recovery rate
       #--------------------------------------------------------------------------------
-      rawData [['MeanStarchRecovery']] [batchCondition] <- prescribedStarchRecoveryFraction
+      rawData [['MeanStarchRecovery']] <- prescribedStarchRecoveryFraction
     }
 
     # Correct all samples for the mean starch recovery percentage of each batch
