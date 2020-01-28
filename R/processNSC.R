@@ -11,6 +11,7 @@
 processNSCs <- function (rawData,
                          cvLimitSample = 0.25,
                          cvLimitTube = 0.05, # Should this be 0.10 or 10% error, as suggested by Jim?
+                         prescribedStarchRecoveryFraction = NA,
                          maxStarchRecoveryFraction = 0.9,
                          LCS = 'Oak',
                          minimumSampleMass = 5.0) {
@@ -332,51 +333,57 @@ processNSCs <- function (rawData,
                                 rawData [['DilutionFactorStarch']] *
                                 rawData [['VolumeStarch']]
 
-    # Calculate starch recovery for each combination of batch and date
+    # Calculate starch recovery for each combination of batch and date, unless it is prescribed
     #------------------------------------------------------------------------------------
-    for (extraction in 1:(dim (extractionsStarch) [1])) {
+    if (is.na (prescribedStarchRecoveryFraction)) {
+      for (extraction in 1:(dim (extractionsStarch) [1])) {
 
-      # Get date of analysis and batch number
-      #------------------------------------------------------------------------------------
-      analysisDate <- extractionsStarch [['date']]  [extraction]
-      batch        <- extractionsStarch [['batch']] [extraction]
+        # Get date of analysis and batch number
+        #------------------------------------------------------------------------------------
+        analysisDate <- extractionsStarch [['date']]  [extraction]
+        batch        <- extractionsStarch [['batch']] [extraction]
 
-      # Get absorbances for potato starch for each combination of batch and analysisDate
-      #--------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
-                      rawData [['BatchID']]                  == batch        &
-                      rawData [['DateOfStarchAnalysis']]     == analysisDate &
-                      !is.na (rawData [['SampleID']])
-      batchCondition <- rawData [['BatchID']]              == batch        &
-                        rawData [['DateOfStarchAnalysis']] == analysisDate
-
-      # Set flag for unrealistically high starch recovery fraction
-      #--------------------------------------------------------------------------------
-      rawData [['SRFHigh']] [batchCondition] <- 'N'
-
-      # Check whether potato standard was run at all, otherwise use maxStarchRecoveryFraction
-      #--------------------------------------------------------------------------------
-      if (sum (refCondition, na.rm = T) == 0) {
-        rawData [['MeanStarchRecovery']] [batchCondition] <- maxStarchRecoveryFraction
-      } else {
-        LCSPotato <- rawData [refCondition, ]
-        meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
-        if (meanPotatoMassRecovered >
-            mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0) { # Maybe I should just drop to one high value?
-          meanPotatoMass <- mean (LCSPotato [['MassSample']])
-          rawData [['SRFHigh']] [batchCondition] <- 'Y'
-        } else {
-          meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction
-        }
-        meanPotatoMass <- meanPotatoMass * 1000.0 # Convert from g to mg
-        meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
-        if (meanRecoveryPer > 100.0) rawData [['SRFHigh']] [batchCondition] <- 'Y'
-        meanRecoveryPer <- min (meanRecoveryPer, 100.0) # Hack to avoid recovery rate above 100%.
-
-        # Set batch's mean starch recovery rate
+        # Get absorbances for potato starch for each combination of batch and analysisDate
         #--------------------------------------------------------------------------------
-        rawData [['MeanStarchRecovery']] [batchCondition] <- meanRecoveryPer
+        refCondition <- substr (rawData [['SampleID']], 1, 10) == 'LCS Potato' &
+                        rawData [['BatchID']]                  == batch        &
+                        rawData [['DateOfStarchAnalysis']]     == analysisDate &
+                        !is.na (rawData [['SampleID']])
+        batchCondition <- rawData [['BatchID']]              == batch        &
+                          rawData [['DateOfStarchAnalysis']] == analysisDate
+
+        # Set flag for unrealistically high starch recovery fraction
+        #--------------------------------------------------------------------------------
+        rawData [['SRFHigh']] [batchCondition] <- 'N'
+
+        # Check whether potato standard was run at all, otherwise use maxStarchRecoveryFraction
+        #--------------------------------------------------------------------------------
+        if (sum (refCondition, na.rm = T) == 0) {
+          rawData [['MeanStarchRecovery']] [batchCondition] <- maxStarchRecoveryFraction
+        } else {
+          LCSPotato <- rawData [refCondition, ]
+          meanPotatoMassRecovered <- mean (LCSPotato [['MassStarch']])
+          if (meanPotatoMassRecovered >
+              mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction * 1000.0) { # Maybe I should just drop to one high value?
+            meanPotatoMass <- mean (LCSPotato [['MassSample']])
+            rawData [['SRFHigh']] [batchCondition] <- 'Y'
+          } else {
+            meanPotatoMass <- mean (LCSPotato [['MassSample']]) * maxStarchRecoveryFraction
+          }
+          meanPotatoMass <- meanPotatoMass * 1000.0 # Convert from g to mg
+          meanRecoveryPer <- meanPotatoMassRecovered / meanPotatoMass * 100.0
+          if (meanRecoveryPer > 100.0) rawData [['SRFHigh']] [batchCondition] <- 'Y'
+          meanRecoveryPer <- min (meanRecoveryPer, 100.0) # Hack to avoid recovery rate above 100%.
+
+          # Set batch's mean starch recovery rate
+          #--------------------------------------------------------------------------------
+          rawData [['MeanStarchRecovery']] [batchCondition] <- meanRecoveryPer
+        }
       }
+    } else {
+      # Set batch's mean starch recovery rate
+      #--------------------------------------------------------------------------------
+      rawData [['MeanStarchRecovery']] [batchCondition] <- prescribedStarchRecoveryFraction
     }
 
     # Correct all samples for the mean starch recovery percentage of each batch
