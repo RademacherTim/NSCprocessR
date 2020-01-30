@@ -62,9 +62,9 @@ plotCalibrationCurves <- function (data) {
 
     # Get absorbances for reference values to create a calibration curve for each batch
     #----------------------------------------------------------------------------------
-    refCondition <- substr (data [['SampleID']], 1, 3)     == 'REF' &
-                    substr (data [['SampleID']], 1, 3)     == 'Ref' &
-                            data [['BatchID']]             == batch &
+    refCondition <- (substr (data [['SampleID']], 1, 3)    == 'REF' |
+                     substr (data [['SampleID']], 1, 3)    == 'Ref' ) &
+                            data [['BatchID']]             == batch   &
                             data [['DateOfSugarAnalysis']] == analysisDate
     referenceValues <- data  [['CorrectedMeanAbsorbance490']] [refCondition]
 
@@ -174,10 +174,10 @@ plotCalibrationCurves <- function (data) {
     # the smallest mean absorbance to avoid negetive numbers due to the correction.
     #--------------------------------------------------------------------------------
     batchCorrection <- min (batchTBAbsorbance,
-                            data [['MeanAbsorbance525']] [batchCondition &
+                            data [['MeanAbsorbance525']] [batchCondition                              &
                                                           substr (data [['SampleID']], 1, 3) != 'REF' &
-                                                          substr (data [['SampleID']], 1, 3) == 'Ref' &
-                                                          substr (data [['SampleID']], 1, 2) != 'TB' &
+                                                          substr (data [['SampleID']], 1, 3) != 'Ref' &
+                                                          substr (data [['SampleID']], 1, 2) != 'TB'  &
                                                           substr (data [['SampleID']], 1, 1) != 'B'])
 
     # Correct mean absorbance values at 525nm
@@ -187,9 +187,9 @@ plotCalibrationCurves <- function (data) {
 
     # Get reference solution concentrations
     #------------------------------------------------------------------------------------
-    refCondition <- substr (data [['SampleID']], 1, 3) == 'REF' &
-                    substr (data [['SampleID']], 1, 3) == 'Ref' &
-                    data [['BatchID']]                 == batch &
+    refCondition <- (substr (data [['SampleID']], 1, 3) == 'REF' |
+                     substr (data [['SampleID']], 1, 3) == 'Ref' ) &
+                    data [['BatchID']]                 == batch    &
                     data [['DateOfStarchAnalysis']]    == analysisDate
     concentrations <- substr (data [['SampleID']] [refCondition], 4,
                               nchar (data [['SampleID']] [refCondition]))

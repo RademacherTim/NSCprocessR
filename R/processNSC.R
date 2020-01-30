@@ -145,9 +145,9 @@ processNSCs <- function (rawData,
 
       # Get absorbances for reference values to create a calibration curve for each batch
       #----------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
-                      substr (rawData [['SampleID']], 1, 3)     == 'Ref' &
-                              rawData [['BatchID']]             == batch &
+      refCondition <- (substr (rawData [['SampleID']], 1, 3)    == 'REF' |
+                       substr (rawData [['SampleID']], 1, 3)    == 'Ref') &
+                              rawData [['BatchID']]             == batch  &
                               rawData [['DateOfSugarAnalysis']] == analysisDate
       referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
 
@@ -222,10 +222,11 @@ processNSCs <- function (rawData,
       # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
       # the smallest mean absorbance to avoid negetive numbers due to the correction.
       #--------------------------------------------------------------------------------
-      condition <- batchCondition & substr (rawData [['SampleID']], 1, 3) != 'REF' &
-                                    substr (rawData [['SampleID']], 1, 3) != 'Ref' &
-                                    substr (rawData [['SampleID']], 1, 2) != 'TB'  &
-                                    substr (rawData [['SampleID']], 1, 1) != 'B'
+      condition <- batchCondition                                 &
+                   substr (rawData [['SampleID']], 1, 3) != 'REF' &
+                   substr (rawData [['SampleID']], 1, 3) != 'Ref' &
+                   substr (rawData [['SampleID']], 1, 2) != 'TB'  &
+                   substr (rawData [['SampleID']], 1, 1) != 'B'
       batchCorrection <- min (batchTBAbsorbance,
                               rawData [['MeanAbsorbance525']] [condition],
                               na.rm = T)
@@ -251,8 +252,8 @@ processNSCs <- function (rawData,
 
       # Get absorbances for reference values to create a calibration curve for each batch
       #----------------------------------------------------------------------------------
-      refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
-                      substr (rawData [['SampleID']], 1, 3) == 'Ref'        &
+      refCondition <- (substr (rawData [['SampleID']], 1, 3) == 'REF' |
+                       substr (rawData [['SampleID']], 1, 3) == 'Ref')      &
                       rawData [['BatchID']]                 == batch        &
                       rawData [['DateOfStarchAnalysis']]    == analysisDate &
                       !is.na (rawData [['SampleID']])
