@@ -27,11 +27,12 @@ processNSCs <- function (rawData,
 
   # check whether a sample weight is below 10 mg and drop it if it is.
   #--------------------------------------------------------------------------------------
-  indicesToDrop <- which (rawData [['MassSample']]                 <  minimumSampleMass &
-                          rawData [['SampleID']]                   != 'B'               &
-                          rawData [['SampleID']]                   != 'TB'              &
-                          substring (rawData [['SampleID']], 1, 3) != 'REF'             &
-                          substring (rawData [['SampleID']], 1, 3) != 'LCS')
+  indicesToDrop <- which (rawData [['MassSample']]              <  minimumSampleMass &
+                          rawData [['SampleID']]                != 'B'               &
+                          rawData [['SampleID']]                != 'TB'              &
+                          substr (rawData [['SampleID']], 1, 3) != 'REF'             &
+                          substr (rawData [['SampleID']], 1, 3) != 'Ref'             &
+                          substr (rawData [['SampleID']], 1, 3) != 'LCS')
   if (length (indicesToDrop) >= 1) {
     rawData <- rawData [-indicesToDrop, ]
     warning (paste ('Warning: ',length (indicesToDrop),' samples are excluded because ',
@@ -145,6 +146,7 @@ processNSCs <- function (rawData,
       # Get absorbances for reference values to create a calibration curve for each batch
       #----------------------------------------------------------------------------------
       refCondition <- substr (rawData [['SampleID']], 1, 3)     == 'REF' &
+                      substr (rawData [['SampleID']], 1, 3)     == 'Ref' &
                               rawData [['BatchID']]             == batch &
                               rawData [['DateOfSugarAnalysis']] == analysisDate
       referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
@@ -220,9 +222,10 @@ processNSCs <- function (rawData,
       # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
       # the smallest mean absorbance to avoid negetive numbers due to the correction.
       #--------------------------------------------------------------------------------
-      condition <- batchCondition & substring (rawData [['SampleID']], 1, 3) != 'REF' &
-                                    substring (rawData [['SampleID']], 1, 2) != 'TB' &
-                                    substring (rawData [['SampleID']], 1, 1) != 'B'
+      condition <- batchCondition & substr (rawData [['SampleID']], 1, 3) != 'REF' &
+                                    substr (rawData [['SampleID']], 1, 3) != 'Ref' &
+                                    substr (rawData [['SampleID']], 1, 2) != 'TB'  &
+                                    substr (rawData [['SampleID']], 1, 1) != 'B'
       batchCorrection <- min (batchTBAbsorbance,
                               rawData [['MeanAbsorbance525']] [condition],
                               na.rm = T)
@@ -249,6 +252,7 @@ processNSCs <- function (rawData,
       # Get absorbances for reference values to create a calibration curve for each batch
       #----------------------------------------------------------------------------------
       refCondition <- substr (rawData [['SampleID']], 1, 3) == 'REF'        &
+                      substr (rawData [['SampleID']], 1, 3) == 'Ref'        &
                       rawData [['BatchID']]                 == batch        &
                       rawData [['DateOfStarchAnalysis']]    == analysisDate &
                       !is.na (rawData [['SampleID']])
