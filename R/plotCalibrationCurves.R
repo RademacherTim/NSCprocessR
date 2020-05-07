@@ -46,10 +46,10 @@ plotCalibrationCurves <- function (data) {
   #--------------------------------------------------------------------------------------
   absorbances490 <- cbind (data [['Absorbance490_1']], data [['Absorbance490_2']])
   absorbances525 <- cbind (data [['Absorbance525_1']], data [['Absorbance525_2']])
-  data [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = T)
-  data [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = T)
+  data [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = TRUE)
+  data [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = TRUE)
   data [['CorrectedMeanAbsorbance490']] <- data [['MeanAbsorbance490']] -
-    min (data [['Absorbance490_Blank']], data [['MeanAbsorbance490']])
+    min (data [['Absorbance490_Blank']], data [['MeanAbsorbance490']], na.rm = TRUE)
 
   # Make and save a sugar calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
@@ -173,12 +173,14 @@ plotCalibrationCurves <- function (data) {
     # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
     # the smallest mean absorbance to avoid negetive numbers due to the correction.
     #--------------------------------------------------------------------------------
+    condition <- batchCondition                              &
+                 substr (data [['SampleID']], 1, 3) != 'REF' &
+                 substr (data [['SampleID']], 1, 3) != 'Ref' &
+                 substr (data [['SampleID']], 1, 2) != 'TB'  &
+                 substr (data [['SampleID']], 1, 1) != 'B'
     batchCorrection <- min (batchTBAbsorbance,
-                            data [['MeanAbsorbance525']] [batchCondition                              &
-                                                          substr (data [['SampleID']], 1, 3) != 'REF' &
-                                                          substr (data [['SampleID']], 1, 3) != 'Ref' &
-                                                          substr (data [['SampleID']], 1, 2) != 'TB'  &
-                                                          substr (data [['SampleID']], 1, 1) != 'B'])
+                            data [['MeanAbsorbance525']] [condition],
+                            na.rm = TRUE)
 
     # Correct mean absorbance values at 525nm
     #--------------------------------------------------------------------------------

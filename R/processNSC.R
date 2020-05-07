@@ -68,7 +68,7 @@ processNSCs <- function (rawData,
   rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
                                               min (rawData [['Absorbance490_Blank']],
                                                    rawData [['MeanAbsorbance490']],
-                                                   na.rm = T)
+                                                   na.rm = TRUE)
 
   # Calculate the within-sample coefficient of variation
   #--------------------------------------------------------------------------------------
@@ -229,7 +229,7 @@ processNSCs <- function (rawData,
                    substr (rawData [['SampleID']], 1, 1) != 'B'
       batchCorrection <- min (batchTBAbsorbance,
                               rawData [['MeanAbsorbance525']] [condition],
-                              na.rm = T)
+                              na.rm = TRUE)
 
       # Flag for higher TB than MeanAbsorbance525
       #--------------------------------------------------------------------------------
