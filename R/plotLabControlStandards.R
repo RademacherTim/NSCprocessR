@@ -21,9 +21,11 @@ plotLabControlStandards <- function (data) {
       datesStarch <- data [['DateOfStarchAnalysis']] [data [['SampleID']] == standard]
       concentrationsOfSugarStds <- data [['ConcentrationSugarPerDW']] [data [['SampleID']] == standard]
       concentrationsOfStarchStds <- data [['ConcentrationStarchPerDW']] [data [['SampleID']] == standard]
+      meanStarchRecovery <- data [['MeanStarchRecovery']] [data [['SampleID']] == standard]
     } else if (standard == 'LCS Potato') {
       datesStarch <- data [['DateOfStarchAnalysis']] [data [['SampleID']] == standard]
       concentrationsOfStarchStds <- data [['ConcentrationStarchPerDW']] [data [['SampleID']] == standard]
+      meanStarchRecovery <- data [['MeanStarchRecovery']] [data [['SampleID']] == standard]
     }
 
     # Check whether this standard is for sugar
@@ -126,7 +128,7 @@ plotLabControlStandards <- function (data) {
             y = concentrationsOfStarchStds,
             main = paste (standard,'over time'),
             xlab = 'time',
-            ylab = 'soluble sugar concentration (% dry weight)',
+            ylab = 'starch concentration (% dry weight)',
             las = 1,
             col = '#91b9a499',
             pch = 19,
@@ -168,7 +170,68 @@ plotLabControlStandards <- function (data) {
       #----------------------------------------------------------------------------------
       dev.off ()
 
+      # Create fileName for the png file
+      #----------------------------------------------------------------------------------
+      fileName <- paste (standard,"_StarchRecoveryFraction.png", sep = "")
+
+      # Open the png file
+      #----------------------------------------------------------------------------------
+      png (file = fileName)
+
+      # Plot the starch standard over time
+      #----------------------------------------------------------------------------------
+      plot (x = datesStarch,
+            y = meanStarchRecovery,
+            main = paste (standard,'over time'),
+            xlab = 'time',
+            ylab = 'starch recovery fraction (%)',
+            las = 1,
+            col = '#91b9a499',
+            pch = 19,
+            ylim  = c (0, 1.5*max (meanStarchRecovery)))
+      if (standard == 'LCS Potato') {
+        abline (h = 100,
+                col = '#66666666',
+                lty = 1)
+      }
+
+      # Add the mean and standard deviation
+      #----------------------------------------------------------------------------------
+      means <- aggregate (meanStarchRecovery, by = list (datesStarch), FUN = mean)
+      sds <- aggregate (meanStarchRecovery, by = list (datesStarch), FUN = sd)
+      arrows (x0 = means [, 1],
+              y0 = means [, 2] - sds [, 2],
+              x1 = means [, 1],
+              y1 = means [, 2] + sds [, 2],
+              col = '#DC143C99',
+              length = 0.05,
+              angle = 90,
+              code = 3)
+      points (x = means [, 1],
+              y = means [, 2],
+              pch = 15,
+              col = '#DC143C99')
+
+      # Add legend
+      #----------------------------------------------------------------------------------
+      legend (x = min (datesStarch),
+              y = 1.5*max (meanStarchRecovery),
+              legend = c ('mean ± standard deviation','individual measurement'),
+              pch = c (15, 19),
+              col = c ('#DC143C99','#91b9a499'),
+              box.lty = 0,
+              bg = 'transparent')
+
+      # Close graphics device
+      #----------------------------------------------------------------------------------
+      dev.off ()
+
     } # End if starch exists condition
+
+    # Clean up to avoid plotting values from previous standard
+    #----------------------------------------------------------------------------------
+    if (exists ('datesSugar'))  rm (datesSugar,  concentrationsOfSugarStds)
+    if (exists ('datesStarch')) rm (datesStarch, concentrationsOfStarchStds, meanStarchRecovery)
 
   } # End the standards loop
 
