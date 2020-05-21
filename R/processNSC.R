@@ -61,14 +61,16 @@ processNSCs <- function (rawData,
 
   # Create two new colums with the average absorbance at 490 and 525 nm
   #--------------------------------------------------------------------------------------
-  absorbances490 <- cbind (rawData [['Absorbance490_1']], rawData [['Absorbance490_2']])
-  absorbances525 <- cbind (rawData [['Absorbance525_1']], rawData [['Absorbance525_2']])
-  rawData [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = T)
-  rawData [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = T)
-  rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
-                                              min (rawData [['Absorbance490_Blank']],
-                                                   rawData [['MeanAbsorbance490']],
-                                                   na.rm = TRUE)
+  absorbances490 <- cbind (data [['Absorbance490_1']], data [['Absorbance490_2']])
+  if (sum (!is.na (absorbances490)) > 0) {
+    data [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = TRUE)
+    data [['CorrectedMeanAbsorbance490']] <- data [['MeanAbsorbance490']] -
+      min (data [['Absorbance490_Blank']], data [['MeanAbsorbance490']], na.rm = TRUE)
+  }
+  absorbances525 <- cbind (data [['Absorbance525_1']], data [['Absorbance525_2']])
+  if (sum (!is.na (absorbance525)) > 0) {
+    data [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = TRUE)
+  }
 
   # Calculate the within-sample coefficient of variation
   #--------------------------------------------------------------------------------------

@@ -45,107 +45,113 @@ plotCalibrationCurves <- function (data) {
   # Create two new colums with the average absorbance at 490 and 525 nm
   #--------------------------------------------------------------------------------------
   absorbances490 <- cbind (data [['Absorbance490_1']], data [['Absorbance490_2']])
+  if (sum (!is.na (absorbances490)) > 0) {
+    data [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = TRUE)
+    data [['CorrectedMeanAbsorbance490']] <- data [['MeanAbsorbance490']] -
+      min (data [['Absorbance490_Blank']], data [['MeanAbsorbance490']], na.rm = TRUE)
+  }
   absorbances525 <- cbind (data [['Absorbance525_1']], data [['Absorbance525_2']])
-  data [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = TRUE)
-  data [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = TRUE)
-  data [['CorrectedMeanAbsorbance490']] <- data [['MeanAbsorbance490']] -
-    min (data [['Absorbance490_Blank']], data [['MeanAbsorbance490']], na.rm = TRUE)
+  if (sum (!is.na (absorbance525)) > 0) {
+    data [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = TRUE)
+  }
 
   # Make and save a sugar calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  for (extraction in 1:(dim (extractionsSugar) [1])) {
+  if () {
+    for (extraction in 1:(dim (extractionsSugar) [1])) {
 
-    # Get date of analysis and batch number
-    #--------------------------------------------------------------------------------------
-    analysisDate <- extractionsSugar [['date']] [extraction]
-    batch <- extractionsSugar [['batch']] [extraction]
+      # Get date of analysis and batch number
+      #--------------------------------------------------------------------------------------
+      analysisDate <- extractionsSugar [['date']] [extraction]
+      batch <- extractionsSugar [['batch']] [extraction]
 
-    # Get absorbances for reference values to create a calibration curve for each batch
-    #----------------------------------------------------------------------------------
-    refCondition <- (substr (data [['SampleID']], 1, 3)    == 'REF' |
-                     substr (data [['SampleID']], 1, 3)    == 'Ref' ) &
-                            data [['BatchID']]             == batch   &
-                            data [['DateOfSugarAnalysis']] == analysisDate
-    referenceValues <- data  [['CorrectedMeanAbsorbance490']] [refCondition]
+      # Get absorbances for reference values to create a calibration curve for each batch
+      #----------------------------------------------------------------------------------
+      refCondition <- (substr (data [['SampleID']], 1, 3)    == 'REF' |
+                       substr (data [['SampleID']], 1, 3)    == 'Ref' ) &
+                              data [['BatchID']]             == batch   &
+                              data [['DateOfSugarAnalysis']] == analysisDate
+      referenceValues <- data  [['CorrectedMeanAbsorbance490']] [refCondition]
 
-    # Get reference solution concentrations
-    #----------------------------------------------------------------------------------
-    concentrations <- substr (data [['SampleID']] [refCondition], 4,
-                              nchar (data [['SampleID']] [refCondition]))
+      # Get reference solution concentrations
+      #----------------------------------------------------------------------------------
+      concentrations <- substr (data [['SampleID']] [refCondition], 4,
+                                nchar (data [['SampleID']] [refCondition]))
 
-    # Set reference solution concentrations to 100 for sugars
-    #----------------------------------------------------------------------------------
-    concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
-    concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar
-    concentrations <- as.numeric (concentrations)
+      # Set reference solution concentrations to 100 for sugars
+      #----------------------------------------------------------------------------------
+      concentrations [concentrations == '100/200'] <- 100.0 # 100 for sugar
+      concentrations [concentrations == '100/100'] <- 100.0 # 100 for sugar
+      concentrations <- as.numeric (concentrations)
 
-    # Sort out reference values with an absorbance above 1.0
-    #----------------------------------------------------------------------------------
-    indicesToKeep <- which (referenceValues >= -0.1 &
-                            referenceValues <=  1.1)
-    referenceValues <- referenceValues [indicesToKeep]
-    concentrations  <- concentrations  [indicesToKeep]
+      # Sort out reference values with an absorbance above 1.0
+      #----------------------------------------------------------------------------------
+      indicesToKeep <- which (referenceValues >= -0.1 &
+                              referenceValues <=  1.1)
+      referenceValues <- referenceValues [indicesToKeep]
+      concentrations  <- concentrations  [indicesToKeep]
 
-    # Get the slope and intercept of a linear curve forced through 0 to make sure no
-    # are estimated to be negative values
-    #----------------------------------------------------------------------------------
-    # sugar <- slope * absorbance + intercept
-    fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
+      # Get the slope and intercept of a linear curve forced through 0 to make sure no
+      # are estimated to be negative values
+      #----------------------------------------------------------------------------------
+      # sugar <- slope * absorbance + intercept
+      fitSugarAll <- lm (concentrations ~ 0 + referenceValues)
 
-    # Check for outliers (residual > 2.0 * sigma) and take them out
-    #------------------------------------------------------------------------------------
-    allReferenceValues <- referenceValues
-    allConcentrations  <- concentrations
-    indicesToDrop <- which (fitSugarAll$residuals > 2.0 * sigma (fitSugarAll))
-    if (length (indicesToDrop) > 0) {
-      concentrations  <- concentrations  [-indicesToDrop]
-      referenceValues <- referenceValues [-indicesToDrop]
+      # Check for outliers (residual > 2.0 * sigma) and take them out
+      #------------------------------------------------------------------------------------
+      allReferenceValues <- referenceValues
+      allConcentrations  <- concentrations
+      indicesToDrop <- which (fitSugarAll$residuals > 2.0 * sigma (fitSugarAll))
+      if (length (indicesToDrop) > 0) {
+        concentrations  <- concentrations  [-indicesToDrop]
+        referenceValues <- referenceValues [-indicesToDrop]
+      }
+
+      # Get the slope and intercept (startch = slope * absorbance + intercept)
+      #------------------------------------------------------------------------------------
+      fitSugar <- lm (concentrations ~ 0 + referenceValues)
+
+      # Create fileName for the pdf
+      #----------------------------------------------------------------------------------
+      fileName <- paste ("calibrationCurve_",format (analysisDate, "%Y-%m-%d"),
+                         "_batch",batch,"_sugar.pdf", sep = "")
+
+      # Open the pdf
+      #----------------------------------------------------------------------------------
+      pdf (file = fileName)
+
+      # Plot the sugar calibration curve
+      #----------------------------------------------------------------------------------
+      plot (x = allReferenceValues,
+            y = allConcentrations,
+            main = paste ('calibration curve for sugar (batch ',batch,'; ',analysisDate,')', sep = ''),
+            las = 1,
+            xlab = 'absorbance at 490 nm',
+            ylab = 'sugar (mg / ml)',
+            xlim = c (0, 1))
+      points (x = referenceValues,
+              y = concentrations,
+              col = '#91b9a499',
+              pch = 19)
+      abline (fitSugarAll,
+              col = 'gray',
+              lwd = 1, lty = 2)
+      abline (fitSugar,
+              col = '#feb24c',
+              lwd = 2, lty = 2)
+      text (x = 0.2,
+            y = max (allConcentrations) * 0.9,
+            labels = expression (paste (R^2,' = ', sep = '')),
+            pos = 2)
+      text (x = 0.2,
+            y = max (allConcentrations) * 0.9,
+            labels = round (summary (fitSugar)$r.squared, 4),
+            pos = 4)
+
+      # close graphics device
+      #----------------------------------------------------------------------------------
+      dev.off ()
     }
-
-    # Get the slope and intercept (startch = slope * absorbance + intercept)
-    #------------------------------------------------------------------------------------
-    fitSugar <- lm (concentrations ~ 0 + referenceValues)
-
-    # Create fileName for the pdf
-    #----------------------------------------------------------------------------------
-    fileName <- paste ("calibrationCurve_",format (analysisDate, "%Y-%m-%d"),
-                       "_batch",batch,"_sugar.pdf", sep = "")
-
-    # Open the pdf
-    #----------------------------------------------------------------------------------
-    pdf (file = fileName)
-
-    # Plot the sugar calibration curve
-    #----------------------------------------------------------------------------------
-    plot (x = allReferenceValues,
-          y = allConcentrations,
-          main = paste ('calibration curve for sugar (batch ',batch,'; ',analysisDate,')', sep = ''),
-          las = 1,
-          xlab = 'absorbance at 490 nm',
-          ylab = 'sugar (mg / ml)',
-          xlim = c (0, 1))
-    points (x = referenceValues,
-            y = concentrations,
-            col = '#91b9a499',
-            pch = 19)
-    abline (fitSugarAll,
-            col = 'gray',
-            lwd = 1, lty = 2)
-    abline (fitSugar,
-            col = '#feb24c',
-            lwd = 2, lty = 2)
-    text (x = 0.2,
-          y = max (allConcentrations) * 0.9,
-          labels = expression (paste (R^2,' = ', sep = '')),
-          pos = 2)
-    text (x = 0.2,
-          y = max (allConcentrations) * 0.9,
-          labels = round (summary (fitSugar)$r.squared, 4),
-          pos = 4)
-
-    # close graphics device
-    #----------------------------------------------------------------------------------
-    dev.off ()
   }
 
   # Make and save a starch calibration curve for each combination of batch and date
