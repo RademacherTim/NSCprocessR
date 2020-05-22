@@ -57,7 +57,7 @@ plotCalibrationCurves <- function (data) {
 
   # Make and save a sugar calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  if () {
+  if (dim (extractionsSugar) [1] != 0) {
     for (extraction in 1:(dim (extractionsSugar) [1])) {
 
       # Get date of analysis and batch number
