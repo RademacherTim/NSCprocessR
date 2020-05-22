@@ -51,7 +51,7 @@ plotCalibrationCurves <- function (data) {
       min (data [['Absorbance490_Blank']], data [['MeanAbsorbance490']], na.rm = TRUE)
   }
   absorbances525 <- cbind (data [['Absorbance525_1']], data [['Absorbance525_2']])
-  if (sum (!is.na (absorbance525)) > 0) {
+  if (sum (!is.na (absorbances525)) > 0) {
     data [['MeanAbsorbance525']] <- rowMeans (absorbances525, na.rm = TRUE)
   }
 
