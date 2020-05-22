@@ -120,8 +120,12 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   if (exists ('extractionsSugar')) {
     if (sum (is.na (extractionsSugar [['date']])) > 0) {
-    extractionsSugar <- extractionsSugar [-which (is.na (extractionsSugar [['date']])), ]
+      extractionsSugar <- extractionsSugar [-which (is.na (extractionsSugar [['date']])), ]
     }
+
+    # Check that there is still one or more extractions or delete the variable
+    #--------------------------------------------------------------------------------------
+    if (dim (extractionsSugar) [1] == 0) rm (extractionsSugar)
   }
 
   # Compile a list of unique batches and dates for starch extractions
@@ -139,13 +143,18 @@ processNSCs <- function (rawData,
   #--------------------------------------------------------------------------------------
   if (exists ('extractionsStarch')) {
     if (sum (is.na (extractionsStarch [['date']])) > 0) {
-    extractionsStarch <- extractionsStarch [-which (is.na (extractionsStarch [['date']])), ]
+      extractionsStarch <- extractionsStarch [-which (is.na (extractionsStarch [['date']])), ]
     }
+
+    # Check that there is still one or more extractions or delete the variable
+    #--------------------------------------------------------------------------------------
+    if (dim (extractionsStarch) [1] == 0) rm (extractionsStarch)
+
   }
 
   # Make and save a sugar calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  if (exists ('extractionsSugar') & dim (extractionsSugar) [1] != 0) {
+  if (exists ('extractionsSugar')) {
     for (extraction in 1:(dim (extractionsSugar) [1])) {
 
       # Get date of analysis and batch number
@@ -204,11 +213,11 @@ processNSCs <- function (rawData,
       rawData [['SlopeSugar']] [batchCondition] <- fitSugar$coefficients
 
     } # End of extraction loop
-  } # End exists ('exteractionsSugar')
+  } # End exists ('extractionsSugar')
 
   # Make and save a starch calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  if (exists ('extractionsStarch') & dim (extractionsStarch) [1] != 0) {
+  if (exists ('extractionsStarch')) {
     for (extraction in 1:(dim (extractionsStarch) [1])) {
 
       # Get date of analysis and batch number
@@ -306,7 +315,7 @@ processNSCs <- function (rawData,
       rawData [['SlopeStarch']] [batchCondition] <- fitStarch$coefficients
 
     } # End of starch extractions loop
-  }
+  } # End exists (extractionsStarch) condition
 
   # Determine concentrations from absorbance values for sugar # Call it a concentrations [mg ml-1]
   #--------------------------------------------------------------------------------------
