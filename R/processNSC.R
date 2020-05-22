@@ -74,18 +74,26 @@ processNSCs <- function (rawData,
 
   # Calculate the within-sample coefficient of variation
   #--------------------------------------------------------------------------------------
-  rawData [['SDAbsorbance490']] <- apply (absorbances490, 1, sd)
-  rawData [['SDAbsorbance525']] <- apply (absorbances525, 1, sd)
-  rawData [['CVAbsorbance490']] <- rawData [['SDAbsorbance490']] /
-                                   rawData [['MeanAbsorbance490']]
-  rawData [['CVAbsorbance490']] [rawData [['CVAbsorbance490']] < 0.0   |
-                                 is.na  (rawData [['CVAborbance490']]) |
-                                 is.nan (rawData [['CVABsorbance490']])] <- NA
-  rawData [['CVAbsorbance525']] <- rawData [['SDAbsorbance525']] /
-                                   rawData [['MeanAbsorbance525']]
-  rawData [['CVAbsorbance525']] [rawData [['CVAbsorbance525']] < 0.0   |
-                                 is.na  (rawData [['CVAborbance525']]) |
-                                 is.nan (rawData [['CVABsorbance525']])] <- NA
+  if (sum (!is.na (absorbances490)) > 0) {
+    rawData [['SDAbsorbance490']] <- apply (absorbances490, 1, sd)
+    rawData [['CVAbsorbance490']] <- rawData [['SDAbsorbance490']] /
+      rawData [['MeanAbsorbance490']]
+    rawData [['CVAbsorbance490']] [rawData [['CVAbsorbance490']] < 0.0   |
+                                   is.na  (rawData [['CVAborbance490']]) |
+                                   is.nan (rawData [['CVABsorbance490']])] <- NA
+  } else {
+    rawData [['CVAbsorbance490']] <- NA
+  }
+  if (sum (!is.na (absorbances525)) > 0) {
+    rawData [['SDAbsorbance525']] <- apply (absorbances525, 1, sd)
+    rawData [['CVAbsorbance525']] <- rawData [['SDAbsorbance525']] /
+      rawData [['MeanAbsorbance525']]
+    rawData [['CVAbsorbance525']] [rawData [['CVAbsorbance525']] < 0.0   |
+                                   is.na  (rawData [['CVAborbance525']]) |
+                                   is.nan (rawData [['CVABsorbance525']])] <- NA
+  } else {
+    rawData [['CVAbsorbance525']] <- NA
+  }
 
   # Flag samples with high CV for re-measuring
   #--------------------------------------------------------------------------------------
@@ -137,7 +145,7 @@ processNSCs <- function (rawData,
 
   # Make and save a sugar calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  if (exists ('extractionsSugar')) {
+  if (exists ('extractionsSugar') & dim (extractionsSugar) [1] != 0) {
     for (extraction in 1:(dim (extractionsSugar) [1])) {
 
       # Get date of analysis and batch number
@@ -200,7 +208,7 @@ processNSCs <- function (rawData,
 
   # Make and save a starch calibration curve for each combination of batch and date
   #--------------------------------------------------------------------------------------
-  if (exists ('extractionsStarch')) {
+  if (exists ('extractionsStarch') & dim (extractionsStarch) [1] != 0) {
     for (extraction in 1:(dim (extractionsStarch) [1])) {
 
       # Get date of analysis and batch number
