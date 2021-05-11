@@ -4,7 +4,11 @@
 #' @param rawData Tibble containing the raw data, as read in by the readRawNSCData function.
 #' @param cvLimitSample Limit for the coefficient of variation within a sample at which the sample if flagged for re-measurement.
 #' @param cvLimitTube Limit for the coefficient of variation within a tube at which the sample is flagged for re-measurement.
+#' @param prescribedStarchRecoveryFraction This parameter allows to prescribe the starch recovery fraction.
+#' @param maxStarchRecoveryFraction Parameter setting the maximum starch recovery fraction, normally set to 90% as this is realistically recoverable.
+#' @param LCS Name of the Laboratory control standards, which would be 'Oak' for the RC lab.
 #' @param minimumSampleMass Threshold weight in milligram below which samples are dropped because they are unreliable. The threshold is set to 5 mg by default.
+#' @param correctAbsorbance490 Boolean indicating whether absobance at 490 nm for soluble sugars is corrected using the sample blanks of the absorbance490_blank column.
 #' @return The processed data, results of the anyalsis and a summary.
 #' @import tibble
 #' @export
@@ -14,7 +18,8 @@ processNSCs <- function (rawData,
                          prescribedStarchRecoveryFraction = NA,
                          maxStarchRecoveryFraction = 0.9,
                          LCS = 'Oak',
-                         minimumSampleMass = 5.0) {
+                         minimumSampleMass = 5.0,
+                         correctAbsorbance490 = TRUE) {
 
   # Load dependencies
   #--------------------------------------------------------------------------------------
@@ -25,7 +30,7 @@ processNSCs <- function (rawData,
   rawData [['MassSample']] <- (rawData [['MassOfTubeAndSample']] -
                                rawData [['MassOfEmptyTube']]) * 1e3
 
-  # check whether a sample weight is below 10 mg and drop it if it is.
+  # Check whether a sample weight is below 10 mg and drop it if it is.
   #--------------------------------------------------------------------------------------
   indicesToDrop <- which (rawData [['MassSample']]              <  minimumSampleMass &
                           rawData [['SampleID']]                != 'B'               &
@@ -64,8 +69,12 @@ processNSCs <- function (rawData,
   absorbances490 <- cbind (rawData [['Absorbance490_1']], rawData [['Absorbance490_2']])
   if (sum (!is.na (absorbances490)) > 0) {
     rawData [['MeanAbsorbance490']] <- rowMeans (absorbances490, na.rm = TRUE)
-    rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
-      min (rawData [['Absorbance490_Blank']], rawData [['MeanAbsorbance490']], na.rm = TRUE)
+    if (correctAbsorbance490) {
+      rawData [['CorrectedMeanAbsorbance490']] <- rawData [['MeanAbsorbance490']] -
+        min (rawData [['Absorbance490_Blank']], rawData [['MeanAbsorbance490']], na.rm = TRUE)
+    } else {
+      rawData [['CorrectedMeanAbsorbance490']] <- NA
+    }
   }
   absorbances525 <- cbind (rawData [['Absorbance525_1']], rawData [['Absorbance525_2']])
   if (sum (!is.na (absorbances525)) > 0) {
@@ -168,7 +177,11 @@ processNSCs <- function (rawData,
                        substr (rawData [['SampleID']], 1, 3)    == 'Ref') &
                               rawData [['BatchID']]             == batch  &
                               rawData [['DateOfSugarAnalysis']] == analysisDate
-      referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
+      if (correctAbsorbance490) {
+        referenceValues <- rawData  [['CorrectedMeanAbsorbance490']] [refCondition]
+      } else {
+        referenceValues <- rawData  [['MeanAbsorbance490']] [refCondition]
+      }
 
       # Get reference solution concentrations
       #----------------------------------------------------------------------------------
@@ -237,7 +250,7 @@ processNSCs <- function (rawData,
         batchTBAbsorbance <- 0.0
       }
 
-      # Determine correction factor from TB, unless they are larger than the sample
+      # Determine starch correction factor from TB, unless they are larger than the sample
       # absorbances at 525nm. If the TB is larger than sample absorbance at 525nm, use
       # the smallest mean absorbance to avoid negetive numbers due to the correction.
       #--------------------------------------------------------------------------------
@@ -320,8 +333,13 @@ processNSCs <- function (rawData,
   # Determine concentrations from absorbance values for sugar # Call it a concentrations [mg ml-1]
   #--------------------------------------------------------------------------------------
   if (exists ('extractionsSugar')) {
-    rawData [['ConcentrationSugar']] <- rawData [['CorrectedMeanAbsorbance490']] *
-                                        rawData [['SlopeSugar']]
+    if (correctAbsorbance490) {
+      rawData [['ConcentrationSugar']] <- rawData [['CorrectedMeanAbsorbance490']] *
+        rawData [['SlopeSugar']]
+    } else {
+      rawData [['ConcentrationSugar']] <- rawData [['MeanAbsorbance490']] *
+        rawData [['SlopeSugar']]
+    }
     rawData [['ConcentrationSugar']] [rawData [['ConcentrationSugar']] < 0.0   |
                                       is.na  (rawData [['ConcentrationSugar']])|
                                       is.nan (rawData [['ConcentrationSugar']])] <- NA
